@@ -277,10 +277,18 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 Bitmap img =  captureImage();
-                if(isStop(img)) {
-                    System.out.println("LATI: " + lati);
-                    System.out.println("LONG: " + glong);
-                    new Thread(() -> getStopInfo(serviceKey, lati, glong)).start();
+                if (mode == 1) {
+                    if (isStop(img)) {
+                        System.out.println("LATI: " + lati);
+                        System.out.println("LONG: " + glong);
+                        new Thread(() -> getStopInfo(serviceKey, lati, glong)).start();
+                    }
+                } else if (mode == 2) {
+                    if (isBus(img)) {
+                        System.out.println("It is Bus!!");
+                    }
+                } else if (mode == 3) {
+                    // 문찾기!!
                 }
             }
         });
@@ -599,8 +607,10 @@ public class MainActivity extends AppCompatActivity {
         return false;
     }
 
-    boolean isStop(Bitmap image) {
+    boolean isStop(Bitmap image1) {
         try {
+            Bitmap image = Bitmap.createScaledBitmap(image1, 224, 224, true);
+
             Stopmodel model = Stopmodel.newInstance(getApplicationContext());
 
             int imageSize = 224;
@@ -651,8 +661,10 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    boolean isBus(Bitmap image){
+    boolean isBus(Bitmap image1){
         try {
+            Bitmap image = Bitmap.createScaledBitmap(image1, 224, 224, true);
+
             Busmodel model = Busmodel.newInstance(getApplicationContext());
 
             int imageSize = 224;
@@ -725,9 +737,7 @@ public class MainActivity extends AppCompatActivity {
                 ContextCompat.getMainExecutor(this),
                 new ImageCapture.OnImageSavedCallback() {
                     @Override
-                    public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
-                        System.out.println("あ： "+outputFileResults.getSavedUri());
-                    }
+                    public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {}
 
                     @Override
                     public void onError(@NonNull ImageCaptureException exception) {
