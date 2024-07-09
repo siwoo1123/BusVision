@@ -42,6 +42,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.busvision.ml.Busmodel;
+import com.example.busvision.ml.Doormodel;
 import com.example.busvision.ml.Stopmodel;
 
 import org.json.JSONArray;
@@ -279,16 +280,43 @@ public class MainActivity extends AppCompatActivity {
                 Bitmap img =  captureImage();
                 if (mode == 1) {
                     if (isStop(img)) {
-                        System.out.println("LATI: " + lati);
-                        System.out.println("LONG: " + glong);
+                        System.out.println("あ： LATI: " + lati);
+                        System.out.println("あ： LONG: " + glong);
                         new Thread(() -> getStopInfo(serviceKey, lati, glong)).start();
                     }
                 } else if (mode == 2) {
                     if (isBus(img)) {
-                        System.out.println("It is Bus!!");
+                        System.out.println("あ： It is Bus!!");
                     }
                 } else if (mode == 3) {
-                    // 문찾기!!
+                    /*
+                    ----문----
+                    1: 좌측
+                    2: 전방
+                    3: 우측
+                    4: 버스아님
+                    5: 오류
+                     */
+                    int whereIsDoor = whereDoor(img);
+
+                    switch (whereIsDoor) {
+                        case 1: {
+                            System.out.println("あ： left");
+                            break;
+                        }
+                        case 2: {
+                            System.out.println("あ： front");
+                            break;
+                        }
+                        case 3: {
+                            System.out.println("あ： right");
+                            break;
+                        }
+                        case 4: {
+                            System.out.println("あ： this is not bus");
+                            break;
+                        }
+                    }
                 }
             }
         });
@@ -715,6 +743,81 @@ public class MainActivity extends AppCompatActivity {
             return false;
         }
 
+    }
+
+    /*
+    ----문----
+    1: 좌측
+    2: 전방
+    3: 우측
+    4: 버스아님
+    5: 오류
+     */
+    int whereDoor(Bitmap image1) {
+        int imageSize = 224;
+        try {
+            Bitmap image = Bitmap.createScaledBitmap(image1, 224, 224, true);
+            Doormodel model = Doormodel.newInstance(getApplicationContext());
+
+            // Creates inputs for reference.
+            TensorBuffer inputFeature0 = TensorBuffer.createFixedSize(new int[]{1, 224, 224, 3}, DataType.FLOAT32);
+
+            ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4 * imageSize * imageSize * 3);
+            byteBuffer.order(ByteOrder.nativeOrder());
+
+            // get 1D array of 224 * 224 pixels in image
+            int [] intValues = new int[imageSize * imageSize];
+            image.getPixels(intValues, 0, image.getWidth(), 0, 0, image.getWidth(), image.getHeight());
+
+            // iterate over pixels and extract R, G, and B values. Add to bytebuffer.
+            int pixel = 0;
+            for(int i = 0; i < imageSize; i++){
+                for(int j = 0; j < imageSize; j++){
+                    int val = intValues[pixel++]; // RGB
+                    byteBuffer.putFloat(((val >> 16) & 0xFF) * (1.f / 255.f));
+                    byteBuffer.putFloat(((val >> 8) & 0xFF) * (1.f / 255.f));
+                    byteBuffer.putFloat((val & 0xFF) * (1.f / 255.f));
+                }
+            }
+
+            inputFeature0.loadBuffer(byteBuffer);
+
+            // Runs model inference and gets result.
+            Doormodel.Outputs outputs = model.process(inputFeature0);
+            TensorBuffer outputFeature0 = outputs.getOutputFeature0AsTensorBuffer();
+
+            float[] confidences = outputFeature0.getFloatArray();
+            // find the index of the class with the biggest confidence.
+            int maxPos = 0;
+            float maxConfidence = 0;
+            for(int i = 0; i < confidences.length; i++){
+                if(confidences[i] > maxConfidence){
+                    maxConfidence = confidences[i];
+                    maxPos = i;
+                }
+            }
+            String[] classes = {"door", "front", "back", "no"};
+
+            model.close();
+
+            switch (classes[maxPos]) {
+                case "front": {
+                    return 1;
+                }
+                case "door": {
+                    return 2;
+                }
+                case "back": {
+                    return 3;
+                }
+                case "no": {
+                    return 4;
+                }
+            }
+        } catch (IOException e) {
+            return 5;
+        }
+        return 5;
     }
 
     public Bitmap captureImage() {
