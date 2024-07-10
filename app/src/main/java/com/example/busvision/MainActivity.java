@@ -1,11 +1,13 @@
 package com.example.busvision;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
@@ -29,7 +31,6 @@ import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
 import androidx.camera.core.Preview;
-import androidx.camera.core.UseCase;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
 import androidx.core.app.ActivityCompat;
@@ -37,7 +38,6 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.lifecycle.LifecycleOwner;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -57,7 +57,6 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicReference;
 
 import okhttp3.*;
 
@@ -94,7 +93,15 @@ public class MainActivity extends AppCompatActivity {
     // GPS
     private final int MY_PERMISSIONS_LOCATION = 100;
     LocationManager locationManager;
-    LocationListener locationListener;
+    final LocationListener locationListener = new LocationListener() {
+        @Override
+        public void onLocationChanged(@NonNull Location location_) {
+            lati = location_.getLatitude();
+            glong = location_.getLongitude();
+
+            System.out.println("LATI :" + lati + " " + "LONG :" + glong);
+        }
+    };;
     double lati, glong;
 
     // TTS
@@ -113,9 +120,10 @@ public class MainActivity extends AppCompatActivity {
     private MediaType JSON = MediaType.parse("application/json; charset=utf-8");
     String serviceKey = "T8aTxlHEaonYss%2BarjTmxYdFTEk5y%2FGWpOFXPibDQ7a98I%2Fjimly0PjpIL01pVFNcN3tNARXitmc58WsBBC%2FUg%3D%3D";
 
-    // API - Information
+    // Thread
+    Thread tr = new Thread(() -> getStopInfo(serviceKey, lati, glong));
 
-    // Image Capture
+    // API - Information
 
     // 모드
     int mode = 1; // 1: stop, 2: bus, 3: door
@@ -231,12 +239,6 @@ public class MainActivity extends AppCompatActivity {
 
         changeMode(1);
 
-        locationManager = (LocationManager) this.getSystemService(LOCATION_SERVICE);
-        locationListener = location -> {
-            lati = location.getLatitude();
-            glong = location.getLongitude();
-        };
-
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(MainActivity.this,
@@ -244,7 +246,9 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 3000, -1, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 3000, -1, locationListener);
 
         tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
             @Override
@@ -282,7 +286,10 @@ public class MainActivity extends AppCompatActivity {
                     if (isStop(img)) {
                         System.out.println("あ： LATI: " + lati);
                         System.out.println("あ： LONG: " + glong);
-                        new Thread(() -> getStopInfo(serviceKey, lati, glong)).start();
+                        toastMsg("Lati: "+ lati + ", Long: " + glong, false);
+                        if (tr.getState() == Thread.State.NEW) {
+                            tr.start();
+                        }
                     }
                 } else if (mode == 2) {
                     if (isBus(img)) {
@@ -301,19 +308,23 @@ public class MainActivity extends AppCompatActivity {
 
                     switch (whereIsDoor) {
                         case 1: {
-                            System.out.println("あ： left");
+                            System.out.println("あ： left (bus's front)");
                             break;
                         }
                         case 2: {
-                            System.out.println("あ： front");
+                            System.out.println("あ： front (bus's door)");
                             break;
                         }
                         case 3: {
-                            System.out.println("あ： right");
+                            System.out.println("あ： right (bus's back or side)");
                             break;
                         }
                         case 4: {
                             System.out.println("あ： this is not bus");
+                            break;
+                        }
+                        case 5: {
+                            toastMsg("오류가 발생하였습니다.");
                             break;
                         }
                     }
@@ -578,15 +589,18 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    ///TODO: API교체하기 + XML->JSON convert하기!
+    // api: https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15000303
     public boolean getStopInfo(@NonNull String key, @NonNull double gpsLati, @NonNull double gpsLong) {
         try {
 
             String citycode, nodeid, nodenm, nodeno;
 
             String url
-                    = "https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getCrdntPrxmtSttnList?serviceKey=" + key
-                    + "&_type=json&gpsLati=" + gpsLati
-                    + "&gpsLong=" + gpsLong;
+                    = "http://ws.bus.go.kr/api/rest/stationinfo/getStationByPos?serviceKey=" + key
+                    + "&tmX=" + gpsLati
+                    + "&tmY=" + gpsLong
+                    + "&radius=500m";
             System.out.println(url);
             // OkHttp 클라이언트 객체 생성
             OkHttpClient client = new OkHttpClient();
@@ -602,6 +616,7 @@ public class MainActivity extends AppCompatActivity {
                 ResponseBody body = response.body();
                 if (body != null) {
                     JSONObject json = new JSONObject(body.string());
+
                     JSONObject res = json.getJSONObject("response");
                     JSONObject resBody = res.getJSONObject("body");
                     String totalCnt = resBody.getString("totalCount");
@@ -858,4 +873,14 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT).show();
         speak(text);
     }
+
+    void toastMsg(@NonNull String text, boolean spk){
+        Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT).show();
+        if(spk)
+            speak(text);
+    }
+
+
+
+
 }
