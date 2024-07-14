@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -44,21 +45,26 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.busvision.ml.Busmodel;
 import com.example.busvision.ml.Doormodel;
 import com.example.busvision.ml.Stopmodel;
+import com.opencsv.CSVReader;
+import com.opencsv.exceptions.CsvException;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
 import org.tensorflow.lite.DataType;
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
-
-import okhttp3.*;
 
 public class MainActivity extends AppCompatActivity {
     // 화면-코드 연결
@@ -90,6 +96,9 @@ public class MainActivity extends AppCompatActivity {
     ProcessCameraProvider processCameraProvider;
     ImageCapture imageCapture;
 
+    // scr
+    int nowScreen = 0;
+
     // GPS
     private final int MY_PERMISSIONS_LOCATION = 100;
     LocationManager locationManager;
@@ -99,7 +108,6 @@ public class MainActivity extends AppCompatActivity {
             lati = location_.getLatitude();
             glong = location_.getLongitude();
 
-            System.out.println("LATI :" + lati + " " + "LONG :" + glong);
         }
     };;
     double lati, glong;
@@ -114,16 +122,7 @@ public class MainActivity extends AppCompatActivity {
     // Recycler View
     LinearLayoutManager layoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
     UserAdapter adapter = new UserAdapter();
-
-    // API
-    private OkHttpClient client = new OkHttpClient();
-    private MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-    String serviceKey = "T8aTxlHEaonYss%2BarjTmxYdFTEk5y%2FGWpOFXPibDQ7a98I%2Fjimly0PjpIL01pVFNcN3tNARXitmc58WsBBC%2FUg%3D%3D";
-
-    // Thread
-    Thread tr = new Thread(() -> getStopInfo(serviceKey, lati, glong));
-
-    // API - Information
+    String nowStop = "234567890876543234567898765432345678";
 
     // 모드
     int mode = 1; // 1: stop, 2: bus, 3: door
@@ -247,8 +246,8 @@ public class MainActivity extends AppCompatActivity {
         }
 
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 3000, -1, locationListener);
-        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 3000, -1, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 100, -1, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 100, -1, locationListener);
 
         tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
             @Override
@@ -278,76 +277,13 @@ public class MainActivity extends AppCompatActivity {
 //        });
 //
 
-        fsPop.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Bitmap img =  captureImage();
-                if (mode == 1) {
-                    if (isStop(img)) {
-                        System.out.println("あ： LATI: " + lati);
-                        System.out.println("あ： LONG: " + glong);
-                        toastMsg("Lati: "+ lati + ", Long: " + glong, false);
-                        if (tr.getState() == Thread.State.NEW) {
-                            tr.start();
-                        }
-                    }
-                } else if (mode == 2) {
-                    if (isBus(img)) {
-                        System.out.println("あ： It is Bus!!");
-                    }
-                } else if (mode == 3) {
-                    /*
-                    ----문----
-                    1: 좌측
-                    2: 전방
-                    3: 우측
-                    4: 버스아님
-                    5: 오류
-                     */
-                    int whereIsDoor = whereDoor(img);
-
-                    switch (whereIsDoor) {
-                        case 1: {
-                            System.out.println("あ： left (bus's front)");
-                            break;
-                        }
-                        case 2: {
-                            System.out.println("あ： front (bus's door)");
-                            break;
-                        }
-                        case 3: {
-                            System.out.println("あ： right (bus's back or side)");
-                            break;
-                        }
-                        case 4: {
-                            System.out.println("あ： this is not bus");
-                            break;
-                        }
-                        case 5: {
-                            toastMsg("오류가 발생하였습니다.");
-                            break;
-                        }
-                    }
-                }
-            }
-        });
+        findSomethingView(true);
+        foundStopView(false);
 
         fsRecycle.setLayoutManager(layoutManager);
         fsRecycle.setAdapter(adapter);
 
-        adapter.addItem(new UserAdapter.Item("11-3", "종합운동장방면", 1));
-        adapter.addItem(new UserAdapter.Item("402", "수서역방면", 2));
-        adapter.addItem(new UserAdapter.Item("4319", "잠실역방면", 3));
-        adapter.addItem(new UserAdapter.Item("G3202", "삼성역방면", 4));
-        adapter.addItem(new UserAdapter.Item("강남02", "대치역방면", 5));
-        adapter.addItem(new UserAdapter.Item("6009", "인천국제공항방면", 6));
-        adapter.addItem(new UserAdapter.Item("43850", "용당소방면", 7));
-
         adapter.notifyDataSetChanged();
-
-
-
-        findSomethingView(false);
 
         stop.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -390,6 +326,75 @@ public class MainActivity extends AppCompatActivity {
                 changeMode(3);
             }
         });
+
+        System.out.println(howLongThisTextIs2("한티역2번출구.서울강남고용노동지청"));
+
+        Timer timer = new Timer();
+        TimerTask timerTask = new TimerTask() {
+            @Override
+            public void run() {
+                MainActivity.this.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Bitmap img;
+                        if (mode == 1 && nowScreen==0) {
+                            img = captureImage();
+                            if (isStop(img) && lati > 0 && glong > 0) {
+                                try {
+                                    getStopInfo(lati, glong);
+                                    findSomethingView(false);
+                                    foundStopView(true);
+                                    nowScreen=1;
+                                } catch (IOException | CsvException e) {
+                                    toastMsg("오류가 발생하였습니다.");
+                                }
+                            }
+                        } else if (mode == 2 && nowScreen==2) {
+                            img = captureImage();
+                            if (isBus(img)) {
+                                System.out.println("あ： It is Bus!!");
+                            }
+                        } else if (mode == 3 && nowScreen==4) {
+                            img = captureImage();
+                            /*
+                            ----문----
+                            1: 좌측
+                            2: 전방
+                            3: 우측
+                            4: 버스아님
+                            5: 오류
+                             */
+                            int whereIsDoor = whereDoor(img);
+
+                            switch (whereIsDoor) {
+                                case 1: {
+                                    System.out.println("あ： left (bus's front)");
+                                    break;
+                                }
+                                case 2: {
+                                    System.out.println("あ： front (bus's door)");
+                                    break;
+                                }
+                                case 3: {
+                                    System.out.println("あ： right (bus's back or side)");
+                                    break;
+                                }
+                                case 4: {
+                                    System.out.println("あ： this is not bus");
+                                    break;
+                                }
+                                case 5: {
+                                    toastMsg("오류가 발생하였습니다.");
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        };
+
+        timer.schedule(timerTask, 0,1000);
 
     }
 
@@ -589,65 +594,169 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    ///TODO: API교체하기 + XML->JSON convert하기!
-    // api: https://www.data.go.kr/tcs/dss/selectApiDataDetailView.do?publicDataPk=15000303
-    public boolean getStopInfo(@NonNull String key, @NonNull double gpsLati, @NonNull double gpsLong) {
-        try {
+    public void getStopInfo(@NonNull double gpsLati, @NonNull double gpsLong) throws IOException, CsvException {
+        if (gpsLati==0.0 && gpsLong==0.0) return;
+        AssetManager assetManager = getAssets();
+        InputStream inputStream = assetManager.open("bus.csv");
+        CSVReader csvReader = new CSVReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
 
-            String citycode, nodeid, nodenm, nodeno;
+        List<String[]> allContent = csvReader.readAll();
 
-            String url
-                    = "http://ws.bus.go.kr/api/rest/stationinfo/getStationByPos?serviceKey=" + key
-                    + "&tmX=" + gpsLati
-                    + "&tmY=" + gpsLong
-                    + "&radius=500m";
-            System.out.println(url);
-            // OkHttp 클라이언트 객체 생성
-            OkHttpClient client = new OkHttpClient();
+        float[] distance = {2147483647};
+        Location watashi = new Location("watashi");
+        watashi.setLatitude(gpsLati);
+        watashi.setLongitude(gpsLong);
 
-            // GET 요청 객체 생성
-            Request.Builder builder = new Request.Builder().url(url).get();
-            Request request = builder.build();
+        Location stopLoc = new Location("busStop");
 
-            // OkHttp 클라이언트로 GET 요청 객체 전송
-            Response response = client.newCall(request).execute();
-            if (response.isSuccessful()) {
-                // 응답 받아서 처리
-                ResponseBody body = response.body();
-                if (body != null) {
-                    JSONObject json = new JSONObject(body.string());
+        String[][] stopAbout = {{"121000146", "22222", "방배사이길", "37.493328", "126.990277", "일반차로"}};
 
-                    JSONObject res = json.getJSONObject("response");
-                    JSONObject resBody = res.getJSONObject("body");
-                    String totalCnt = resBody.getString("totalCount");
-                    if(!totalCnt.equals("0")) {
-                        JSONObject resBodyItems = resBody.getJSONObject("items");
-                        JSONArray resBodyItemsItem = resBodyItems.getJSONArray("item");
-                        JSONObject data = resBodyItemsItem.getJSONObject(0);
+        allContent.forEach(stop -> {
+            if(!Objects.equals(stop[5], "가상정류장")) {
+                stopLoc.setLatitude(Double.parseDouble(stop[3]));
+                stopLoc.setLongitude(Double.parseDouble(stop[4]));
 
-                        citycode = data.getString("citycode");
-                        nodeid = data.getString("nodeid");
-                        nodenm = data.getString("nodenm");
-                        nodeno = data.getString("nodeno");
-
-                        System.out.println("あ： city-" + citycode + " nid-" + nodeid + " nnm-" + nodenm + " nno-" + nodeno);
-                    } else {
-                        System.out.println("あ： 500m내에 정류소 없음");
+                float dis = watashi.distanceTo(stopLoc);
+                if(dis < distance[0]) {
+                    String stopID, stopNO, stopNM, stopLA, stopLO, stopTP;
+                    stopID=stop[0]; stopNO=stop[1]; stopNM = stop[2]; stopLA=stop[3]; stopLO=stop[4]; stopTP=stop[5];
+                    if(Objects.equals(stop[5], "중앙차로")) {
+                        stopNM = stopNM + "(중)";
+                    }
+                    if(stopNO.length() == 4) {
+                        stopNO = "0"+stopNO;
                     }
 
+                    stopAbout[0] = new String[]{stopID, stopNO, stopNM, stopLA, stopLO, stopTP};
+                    distance[0] = dis;
                 }
             }
-            else {
-                System.err.println("Error Occurred");
+        });
+
+        inputStream = assetManager.open("busRoute.csv");
+        csvReader = new CSVReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+        allContent = csvReader.readAll();
+
+        ArrayList<String[]> stopRoute = new ArrayList<>();
+
+        allContent.forEach(route -> {
+            if(Objects.equals(route[3], stopAbout[0][0])) {
+                stopRoute.add(new String[]{route[0], route[1], route[2]});
             }
+        });
 
-            return true;
-        } catch(Exception e) {
-            e.printStackTrace();
-            System.out.println("あ: "+ e);
+
+        if(!Objects.equals(nowStop, stopAbout[0][0])) {
+            System.out.println('[' + stopAbout[0][1] + "] " + stopAbout[0][2] + " (" + stopAbout[0][0] + ')');
+
+//            String titleText = howLongThisTextIs2(stopAbout[0][2]) + " (" + stopAbout[0][1] + ")";
+            String titleText = howLongThisTextIs2(stopAbout[0][2]) + " (" + stopNumberReformatting(stopAbout[0][1]) + ")";
+
+            fsTitle.setText(titleText);
+            fsContext1.setText("정류소를 찾았습니다.\n정차노선:");
+            emptyRecyclerView();
+            final String[] detail = {""};
+            stopRoute.forEach(line -> {
+                try {
+                    String nextStop = findNextStop(line[0],line[2]);
+                    adapter.addItem(new UserAdapter.Item(howLongThisTextIs(line[1]), howLongThisTextIs2(nextStop)+"방향", whatColorIsThisBus(line[1])));
+                    detail[0] += line[1] + "번 " + nextStop + "방향, ";
+                } catch (IOException | CsvException e) {
+                    toastMsg("오류가 발생하였습니다.");
+                }
+            });
+            useTTS(1, stopAbout[0][2], detail[0]);
+            nowStop = stopAbout[0][0];
         }
+    }
 
-        return false;
+    String findNextStop(String busID, String cnt) throws IOException, CsvException {
+        AssetManager assetManager = getAssets();
+        InputStream inputStream = assetManager.open("busRoute.csv");
+        CSVReader csvReader = new CSVReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+        final String[] nxt = {"종점"};
+
+        List<String[]> allContent = csvReader.readAll();
+
+        allContent.forEach(stop -> {
+            if(Objects.equals(stop[0], busID) && Objects.equals(stop[2], Integer.toString(Integer.parseInt(cnt)+1))) {
+                nxt[0] = stop[5];
+            }
+        });
+        return nxt[0];
+    }
+
+    String howLongThisTextIs(String txt) {
+        if(Objects.equals(txt, "청와대A01")) return "A01";
+        if(Objects.equals(txt, "심야A21")) return "A21";
+        return txt;
+    }
+
+    String howLongThisTextIs2(String txt) {
+        String cp = txt;
+        if(cp.length() >= 9)
+            cp = cp.substring(0,8)+"...";
+        return cp;
+    }
+
+    String stopNumberReformatting(String number) {
+        return number.substring(0,2)+"-"+number.substring(2);
+    }
+
+    void emptyRecyclerView() {
+        adapter = new UserAdapter();
+        fsRecycle.setAdapter(adapter);
+    }
+
+    int whatColorIsThisBus(String number){
+        if(Objects.equals(number, "702A서오롱") || Objects.equals(number, "702B용두초교") || Objects.equals(number, "110A고려대") || Objects.equals(number, "110B국민대")) return 2;
+        if(number.length() == 3 && number.charAt(2) != 'A' && number.charAt(2) != 'B') return 2;
+        if(number.length() == 4 && (number.charAt(3) == 'A' || number.charAt(3) == 'B')) return 2;
+
+        if(
+                Objects.equals(number, "01A")
+                || Objects.equals(number, "01B")
+                || Objects.equals(number, "청와대A01")
+        ) return 5;
+
+        if(Objects.equals(number, "5522A난곡") || Objects.equals(number, "5522B호암")) return 3;
+        if(
+                Objects.equals(number, "6701")
+                || Objects.equals(number, "6702")
+                || Objects.equals(number, "6703")
+                || Objects.equals(number, "6200")
+                || Objects.equals(number, "6300")
+                || Objects.equals(number, "6600")
+        ) return 6;
+
+        if(
+                Objects.equals(number, "6104")
+                || Objects.equals(number, "6500")
+                || Objects.equals(number, "6704")
+                || Objects.equals(number, "6706")
+                || Objects.equals(number, "6006-1")
+                || Objects.equals(number, "6009-1")
+                || Objects.equals(number, "6020-1")
+                || Objects.equals(number, "6101-1")
+                || Objects.equals(number, "6300-1")
+                || Objects.equals(number, "6707B")
+        ) return 7;
+        if(number.length() == 4 && number.charAt(0) == '6' && number.charAt(1) == '0') return 6;
+        if(number.length() == 4 && number.charAt(0) == '6' && number.charAt(1) == '1') return 6;
+        if(number.length() == 4 && number.charAt(0) == '6' && number.charAt(1) == '3') return 6;
+
+        if(number.length() == 5 && number.charAt(4) == 'A' && number.charAt(4) == 'B') return 3;
+        if(number.length() == 4 && number.charAt(0) < '9' && number.charAt(0) >= '0') return 3;
+        if(number.length() == 4 && number.charAt(0) == '9') return 4;
+        if(number.length() == 5 && number.charAt(0) == 'N') return 6;
+        if(number.length() == 5 && number.charAt(4) == 'A') return 6;
+        if(number.length() == 5 && number.charAt(4) == 'B') return 6;
+        if(number.length() == 6) return 6;
+        if(Objects.equals(number, "심야A21")) return 2;
+        if(Objects.equals(number, "9401-1")) return 4;
+        if(number.length() >= 4) return 5;
+
+        return 7;
     }
 
     boolean isStop(Bitmap image1) {
@@ -879,8 +988,4 @@ public class MainActivity extends AppCompatActivity {
         if(spk)
             speak(text);
     }
-
-
-
-
 }

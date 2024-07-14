@@ -38,6 +38,7 @@
         android:theme="@style/Theme.BusVision"
         android:screenOrientation="portrait"
         tools:targetApi="31"
+        android:foregroundServiceType="location"
         tools:ignore="DiscouragedApi">
         <activity
             android:name=".MainActivity"

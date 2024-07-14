@@ -189,7 +189,7 @@
         android:id="@+id/foundstop_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="10dp"
         android:text="'성남역' 정류소를 찾았습니다."
         android:textColor="@color/white"
         android:textSize="30dp"
@@ -214,6 +214,7 @@
         android:text="정차노선:"
         android:textColor="@color/white"
         android:textSize="20dp"
+        android:textAlignment="center"
         app:layout_constraintBottom_toBottomOf="@+id/foundstop_pop"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />

@@ -39,7 +39,7 @@ public class UserAdapter extends RecyclerView.Adapter<UserAdapter.ViewHolder> {
 //        순환/마을: #C68400
 //        광역: #FF0000
 //        일반: #009775
-//        시외/공항: #AB22B5
+//        공항: #AB22B5
 
         public void setItem(Item item) {
             busNumber.setText(item.bn);
@@ -58,7 +58,7 @@ public class UserAdapter extends RecyclerView.Adapter<UserAdapter.ViewHolder> {
             } else if (item.routetype == 5) {
                 busNumber.setBackgroundColor(Color.parseColor("#C68400"));
             } else if (item.routetype == 6) {
-                busNumber.setBackgroundColor(Color.parseColor("#AB22B5"));
+                busNumber.setBackgroundColor(Color.parseColor("#451e00"));
             } else {
                 busNumber.setBackgroundColor(Color.BLACK);
             }
