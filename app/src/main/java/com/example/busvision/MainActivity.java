@@ -708,55 +708,29 @@ public class MainActivity extends AppCompatActivity {
         fsRecycle.setAdapter(adapter);
     }
 
-    int whatColorIsThisBus(String number){
-        if(Objects.equals(number, "702A서오롱") || Objects.equals(number, "702B용두초교") || Objects.equals(number, "110A고려대") || Objects.equals(number, "110B국민대")) return 2;
-        if(number.length() == 3 && number.charAt(2) != 'A' && number.charAt(2) != 'B') return 2;
-        if(number.length() == 4 && (number.charAt(3) == 'A' || number.charAt(3) == 'B')) return 2;
+    int whatColorIsThisBus(String number) throws IOException, CsvException {
+        AssetManager assetManager = getAssets();
+        InputStream inputStream = assetManager.open("busInfo.csv");
+        CSVReader csvReader = new CSVReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+        List<String[]> allContent = csvReader.readAll();
 
-        if(
-                Objects.equals(number, "01A")
-                || Objects.equals(number, "01B")
-                || Objects.equals(number, "청와대A01")
-        ) return 5;
+        int res = 7;
+        for (String[] line : allContent) {
+            if (Objects.equals(number, line[1])) {
+                String tp = line[2];
+                if(Objects.equals(tp, "간선")) res = 2;
+                if(Objects.equals(tp, "지선")) res = 3;
+                if(Objects.equals(tp, "광역")) res = 4;
+                if(Objects.equals(tp, "순환") || Objects.equals(tp, "마을") || Objects.equals(tp, "관광")) res = 5;
+                if(Objects.equals(tp, "공항")) res = 6;
+                if(Objects.equals(tp, "동행")) {
+                    if(Objects.equals(number, "서울01") || Objects.equals(number, "서울03") || Objects.equals(number, "서울06")) res = 4;
+                    else res = 2;
+                }
+            }
+        }
 
-        if(Objects.equals(number, "5522A난곡") || Objects.equals(number, "5522B호암")) return 3;
-        if(
-                Objects.equals(number, "6701")
-                || Objects.equals(number, "6702")
-                || Objects.equals(number, "6703")
-                || Objects.equals(number, "6200")
-                || Objects.equals(number, "6300")
-                || Objects.equals(number, "6600")
-        ) return 6;
-
-        if(
-                Objects.equals(number, "6104")
-                || Objects.equals(number, "6500")
-                || Objects.equals(number, "6704")
-                || Objects.equals(number, "6706")
-                || Objects.equals(number, "6006-1")
-                || Objects.equals(number, "6009-1")
-                || Objects.equals(number, "6020-1")
-                || Objects.equals(number, "6101-1")
-                || Objects.equals(number, "6300-1")
-                || Objects.equals(number, "6707B")
-        ) return 7;
-        if(number.length() == 4 && number.charAt(0) == '6' && number.charAt(1) == '0') return 6;
-        if(number.length() == 4 && number.charAt(0) == '6' && number.charAt(1) == '1') return 6;
-        if(number.length() == 4 && number.charAt(0) == '6' && number.charAt(1) == '3') return 6;
-
-        if(number.length() == 5 && number.charAt(4) == 'A' && number.charAt(4) == 'B') return 3;
-        if(number.length() == 4 && number.charAt(0) < '9' && number.charAt(0) >= '0') return 3;
-        if(number.length() == 4 && number.charAt(0) == '9') return 4;
-        if(number.length() == 5 && number.charAt(0) == 'N') return 6;
-        if(number.length() == 5 && number.charAt(4) == 'A') return 6;
-        if(number.length() == 5 && number.charAt(4) == 'B') return 6;
-        if(number.length() == 6) return 6;
-        if(Objects.equals(number, "심야A21")) return 2;
-        if(Objects.equals(number, "9401-1")) return 4;
-        if(number.length() >= 4) return 5;
-
-        return 7;
+        return res;
     }
 
     boolean isStop(Bitmap image1) {

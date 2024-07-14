@@ -28,9 +28,9 @@ public class UserAdapter extends RecyclerView.Adapter<UserAdapter.ViewHolder> {
         2: 간선/심야
         3: 지선/맞춤
         4: 광역/직좌
-        5: 마을/순환
+        5: 마을/순환/관광
         6: 시외/공항
-        7~: 기타
+        7: 기타
          */
 
 //        색상
@@ -39,7 +39,7 @@ public class UserAdapter extends RecyclerView.Adapter<UserAdapter.ViewHolder> {
 //        순환/마을: #C68400
 //        광역: #FF0000
 //        일반: #009775
-//        공항: #AB22B5
+//        공항: #451e00
 
         public void setItem(Item item) {
             busNumber.setText(item.bn);
