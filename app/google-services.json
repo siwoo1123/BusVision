@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "40202051839",
+    "project_id": "busvision-92f29",
+    "storage_bucket": "busvision-92f29.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:40202051839:android:80c256ac6698e6e07cacca",
+        "android_client_info": {
+          "package_name": "com.example.busvision"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBYbUBA353TH4tubGQZEBOw-m9Cq2nMb88"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
