@@ -88,6 +88,11 @@ public class MainActivity extends AppCompatActivity {
     TextView fsContext2;
     RecyclerView fsRecycle;
 
+    // FoundBus View
+    View fbPop;
+    TextView fbTitle;
+    TextView fbContext;
+
     // 카메라
     private final int MY_PERMISSIONS_REQUEST_CAMERA = 1001;
     Preview preview = new Preview.Builder().build();
@@ -118,6 +123,9 @@ public class MainActivity extends AppCompatActivity {
     // STT
     Intent intent;
     final int PERMISSION = 1;
+    String ans = "";
+    SpeechRecognizer mRecognizer;
+    boolean isSpeaking = false;
 
     // Recycler View
     LinearLayoutManager layoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
@@ -133,20 +141,47 @@ public class MainActivity extends AppCompatActivity {
 
         // 모드별로 변하는거
         if (md == 1) {
+            try {
+                speak("정류소 찾기 모드입니다.");
+            } catch (Exception ignored) {}
             stopClr = Color.WHITE;
             busClr = Color.GRAY;
             doorClr = Color.GRAY;
             txt += "정류소 찾기";
+            fdTitle.setText("정류소 찾기");
+            fdContext.setText("정류소를 찾고있습니다...");
+            findSomethingView(true);
+            foundStopView(false);
+            foundBusView(false);
+            nowScreen=0;
         } else if (md == 2) {
+            try {
+                speak("버스 찾기 모드입니다.");
+            } catch (Exception ignored) {}
             stopClr = Color.GRAY;
             busClr = Color.WHITE;
             doorClr = Color.GRAY;
             txt += "버스 찾기";
+            fdTitle.setText("버스 찾기");
+            fdContext.setText("버스를 찾고있습니다...");
+            findSomethingView(true);
+            foundStopView(false);
+            foundBusView(false);
+            nowScreen=2;
         } else {
+            try {
+                speak("문 찾기 모드입니다.");
+            } catch (Exception ignored) {}
             stopClr = Color.GRAY;
             busClr = Color.GRAY;
             doorClr = Color.WHITE;
             txt += "문 찾기";
+            fdTitle.setText("문 찾기");
+            fdContext.setText("문을 찾고있습니다...");
+            findSomethingView(true);
+            foundStopView(false);
+            foundBusView(false);
+            nowScreen=4;
         }
 
         // 모드 텍스트, 변수 변경
@@ -160,6 +195,9 @@ public class MainActivity extends AppCompatActivity {
         busTxt.setTextColor(busClr);
         door.setColorFilter(doorClr);
         doorTxt.setTextColor(doorClr);
+
+        // 다른거
+        stopSTT();
     }
 
     @Override
@@ -193,6 +231,10 @@ public class MainActivity extends AppCompatActivity {
         fsContext2 = findViewById(R.id.foundstop_text2);
         fsRecycle = findViewById(R.id.foundstop_routes);
 
+        // FoundBus View
+        fbPop = findViewById(R.id.foundbus_pop);
+        fbTitle = findViewById(R.id.foundbus_title);
+        fbContext = findViewById(R.id.foundbus_text);
 
 
         int permssionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA);
@@ -327,8 +369,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        System.out.println(howLongThisTextIs2("한티역2번출구.서울강남고용노동지청"));
-
         Timer timer = new Timer();
         TimerTask timerTask = new TimerTask() {
             @Override
@@ -341,10 +381,8 @@ public class MainActivity extends AppCompatActivity {
                             img = captureImage();
                             if (isStop(img) && lati > 0 && glong > 0) {
                                 try {
-                                    getStopInfo(lati, glong);
-                                    findSomethingView(false);
-                                    foundStopView(true);
                                     nowScreen=1;
+                                    getStopInfo(lati, glong);
                                 } catch (IOException | CsvException e) {
                                     toastMsg("오류가 발생하였습니다.");
                                 }
@@ -352,7 +390,12 @@ public class MainActivity extends AppCompatActivity {
                         } else if (mode == 2 && nowScreen==2) {
                             img = captureImage();
                             if (isBus(img)) {
-                                System.out.println("あ： It is Bus!!");
+                                nowScreen=3;
+                                findSomethingView(false);
+                                foundBusView(true);
+                                useTTS(2,"7727","");
+                                while (tts.isSpeaking()) {}
+                                useSTT();
                             }
                         } else if (mode == 3 && nowScreen==4) {
                             img = captureImage();
@@ -368,15 +411,21 @@ public class MainActivity extends AppCompatActivity {
 
                             switch (whereIsDoor) {
                                 case 1: {
+                                    nowScreen=5;
                                     System.out.println("あ： left (bus's front)");
+                                    toastMsg("사용자의 왼쪽에 있습니다");
                                     break;
                                 }
                                 case 2: {
+                                    nowScreen=5;
                                     System.out.println("あ： front (bus's door)");
+                                    toastMsg("사용자의 정면 있습니다");
                                     break;
                                 }
                                 case 3: {
+                                    nowScreen=5;
                                     System.out.println("あ： right (bus's back or side)");
+                                    toastMsg("사용자의 오른쪽에 있습니다");
                                     break;
                                 }
                                 case 4: {
@@ -384,7 +433,7 @@ public class MainActivity extends AppCompatActivity {
                                     break;
                                 }
                                 case 5: {
-                                    toastMsg("오류가 발생하였습니다.");
+                                    toastMsg("오류가 발생하였습니다");
                                     break;
                                 }
                             }
@@ -455,13 +504,14 @@ public class MainActivity extends AppCompatActivity {
             case 1: {
                 script += titleText + "정류소를 찾았습니다. ";
                 script += "이 정류소의 정차노선은, " + detail + "입니다. ";
-                script += "이용하시려는 노선이 있습니까?";
+                script += "이용하시려는 노선이 있습니까? 네 또는 아니오로 답해주십시오.";
                 break;
             }
             case 2: {
                 script += titleText + "번 버스를 찾았습니다. ";
-                script += "이 버스는, " + detail + "입니다. ";
-                script += "승차하시겠습니까?";
+                if (!detail.isEmpty())
+                    script += "이 버스는, " + detail + "입니다. ";
+                script += "승차하시겠습니까? 네 또는 아니오로 답해주십시오.";
                 break;
             }
             case 3: {
@@ -493,7 +543,8 @@ public class MainActivity extends AppCompatActivity {
     private RecognitionListener listener = new RecognitionListener() {
         @Override
         public void onReadyForSpeech(Bundle params) {
-            toastMsg("음성인식을 시작합니다.");
+            toastMsg("음성인식을 시작합니다.", false);
+            System.out.println("お");
         }
 
         @Override
@@ -510,43 +561,9 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onError(int error) {
-            String message;
-
-            switch (error) {
-                case SpeechRecognizer.ERROR_AUDIO:
-                    message = "오디오 에러";
-                    break;
-                case SpeechRecognizer.ERROR_CLIENT:
-                    message = "클라이언트 에러";
-                    break;
-                case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
-                    message = "퍼미션 없음";
-                    break;
-                case SpeechRecognizer.ERROR_NETWORK:
-                    message = "네트워크 에러";
-                    break;
-                case SpeechRecognizer.ERROR_NETWORK_TIMEOUT:
-                    message = "네트웍 타임아웃";
-                    break;
-                case SpeechRecognizer.ERROR_NO_MATCH:
-                    message = "찾을 수 없음";
-                    break;
-                case SpeechRecognizer.ERROR_RECOGNIZER_BUSY:
-                    message = "RECOGNIZER가 바쁨";
-                    break;
-                case SpeechRecognizer.ERROR_SERVER:
-                    message = "서버가 이상함";
-                    break;
-                case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
-                    message = "말하는 시간초과";
-                    break;
-                default:
-                    message = "알 수 없는 오류임";
-                    break;
-            }
-
-            Toast.makeText(getApplicationContext(), "에러가 발생하였습니다. : " + message,Toast.LENGTH_SHORT).show();
-            speak("에러가 발생하였습니다. : " + message);
+            stopSTT();
+            toastMsg("다시 말씀해주세요");
+            useSTT();
         }
 
         @Override
@@ -554,8 +571,21 @@ public class MainActivity extends AppCompatActivity {
             // 말을 하면 ArrayList에 단어를 넣고 textView에 단어를 이어준다.
             ArrayList<String> matches =
                     results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+            ans = "";
             for(int i = 0; i < matches.size() ; i++){
-                toastMsg(matches.get(i));
+                ans += matches.get(i);
+            }
+            stopSTT();
+
+            int yesMd=mode+1, noMd=mode;
+
+            if (ans.equals("네") || ans.equals("예")) {
+                changeMode(yesMd);
+            } else if (ans.equals("아니오") || ans.equals("아니요")) {
+                changeMode(noMd);
+            } else {
+                toastMsg("다시 말씀해주세요");
+                useSTT();
             }
         }
 
@@ -575,6 +605,18 @@ public class MainActivity extends AppCompatActivity {
             fdPop.setVisibility(View.GONE);
             fdTitle.setVisibility(View.GONE);
             fdContext.setVisibility(View.GONE);
+        }
+    }
+
+    void foundBusView(boolean visibility) {
+        if (visibility) {
+            fbPop.setVisibility(View.VISIBLE);
+            fbTitle.setVisibility(View.VISIBLE);
+            fbContext.setVisibility(View.VISIBLE);
+        } else {
+            fbPop.setVisibility(View.GONE);
+            fbTitle.setVisibility(View.GONE);
+            fbContext.setVisibility(View.GONE);
         }
     }
 
@@ -609,7 +651,7 @@ public class MainActivity extends AppCompatActivity {
 
         Location stopLoc = new Location("busStop");
 
-        String[][] stopAbout = {{"121000146", "22222", "방배사이길", "37.493328", "126.990277", "일반차로"}};
+        String[][] stopAbout = {{"56", "7", "방길", "3", "1", "일차로"}};
 
         allContent.forEach(stop -> {
             if(!Objects.equals(stop[5], "가상정류장")) {
@@ -647,7 +689,6 @@ public class MainActivity extends AppCompatActivity {
 
 
         if(!Objects.equals(nowStop, stopAbout[0][0])) {
-            System.out.println('[' + stopAbout[0][1] + "] " + stopAbout[0][2] + " (" + stopAbout[0][0] + ')');
 
 //            String titleText = howLongThisTextIs2(stopAbout[0][2]) + " (" + stopAbout[0][1] + ")";
             String titleText = howLongThisTextIs2(stopAbout[0][2]) + " (" + stopNumberReformatting(stopAbout[0][1]) + ")";
@@ -656,17 +697,26 @@ public class MainActivity extends AppCompatActivity {
             fsContext1.setText("정류소를 찾았습니다.\n정차노선:");
             emptyRecyclerView();
             final String[] detail = {""};
+
             stopRoute.forEach(line -> {
                 try {
                     String nextStop = findNextStop(line[0],line[2]);
                     adapter.addItem(new UserAdapter.Item(howLongThisTextIs(line[1]), howLongThisTextIs2(nextStop)+"방향", whatColorIsThisBus(line[1])));
                     detail[0] += line[1] + "번 " + nextStop + "방향, ";
+//                    System.out.println(detail[0]);
                 } catch (IOException | CsvException e) {
                     toastMsg("오류가 발생하였습니다.");
                 }
             });
-            useTTS(1, stopAbout[0][2], detail[0]);
             nowStop = stopAbout[0][0];
+            adapter.notifyDataSetChanged();
+
+            findSomethingView(false);
+            foundStopView(true);
+
+            useTTS(1, stopAbout[0][2], detail[0]);
+            while (tts.isSpeaking()) {}
+            useSTT();
         }
     }
 
@@ -961,5 +1011,22 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT).show();
         if(spk)
             speak(text);
+    }
+
+    void useSTT() {
+        isSpeaking=true;
+        mRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        mRecognizer.setRecognitionListener(listener);
+        mRecognizer.startListening(intent);
+        System.out.println("い");
+    }
+
+    public void stopSTT(){
+        if(mRecognizer!=null){
+            isSpeaking=false;
+            mRecognizer.destroy();
+            mRecognizer.cancel();
+            mRecognizer = null;
+        }
     }
 }
