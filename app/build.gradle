@@ -54,5 +54,6 @@ dependencies {
     implementation platform('com.google.firebase:firebase-bom:32.7.3')
     implementation 'com.google.firebase:firebase-analytics'
     implementation 'com.google.firebase:firebase-storage'
+    implementation 'android.arch.lifecycle:extensions:1.1.1'
 
 }

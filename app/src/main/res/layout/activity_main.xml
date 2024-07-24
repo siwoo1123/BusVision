@@ -17,13 +17,15 @@
         app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/view"
-        app:layout_constraintVertical_bias="1.0" />
+        app:layout_constraintVertical_bias="1.0"
+        tools:visibility="visible" />
 
     <View
         android:id="@+id/view"
         android:layout_width="match_parent"
         android:layout_height="165dp"
         android:background="#CC151515"
+        android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="1.0"
@@ -35,6 +37,7 @@
         android:id="@+id/BusModeImg"
         android:layout_width="80dp"
         android:layout_height="80dp"
+        android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="@+id/view"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
@@ -49,6 +52,7 @@
         android:layout_height="wrap_content"
         android:text="버스 찾기"
         android:textColor="#808080"
+        android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="@+id/view"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
@@ -60,6 +64,7 @@
         android:id="@+id/StopModeImg"
         android:layout_width="80dp"
         android:layout_height="80dp"
+        android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="@+id/view"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.048"
@@ -75,6 +80,7 @@
         android:text="정류소 찾기"
         android:textAlignment="center"
         android:textColor="#808080"
+        android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="@+id/view"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.069"
@@ -86,6 +92,7 @@
         android:id="@+id/DoorModeImg"
         android:layout_width="80dp"
         android:layout_height="80dp"
+        android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="@+id/view"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.951"
@@ -100,6 +107,7 @@
         android:layout_height="wrap_content"
         android:text="문 찾기"
         android:textColor="#808080"
+        android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="@+id/view"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.905"
@@ -112,6 +120,7 @@
         android:layout_width="33dp"
         android:layout_height="23dp"
         android:layout_marginStart="344dp"
+        android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="@+id/view"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.19"
@@ -119,6 +128,122 @@
         app:layout_constraintTop_toTopOf="@+id/view"
         app:layout_constraintVertical_bias="0.089999974"
         app:srcCompat="@drawable/setting" />
+
+    <TextView
+        android:id="@+id/modename"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Bus Vision: 정류소 찾기"
+        android:textColor="@color/white"
+        android:textSize="25dp"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.009" />
+
+    <View
+        android:id="@+id/nan_pop"
+        android:layout_width="396dp"
+        android:layout_height="116dp"
+        android:layout_marginStart="5dp"
+        android:layout_marginEnd="5dp"
+        android:layout_marginBottom="3dp"
+        android:background="@drawable/roundview"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.466"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/nan_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="BusVision"
+        android:textColor="@color/white"
+        android:textSize="30dp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/nan_pop" />
+
+    <TextView
+        android:id="@+id/nan_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:text="몇 번 버스를 찾으십니까?"
+        android:textColor="@color/white"
+        android:textSize="20dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@+id/nan_pop"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.479"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <View
+        android:id="@+id/nan2_pop"
+        android:layout_width="396dp"
+        android:layout_height="116dp"
+        android:layout_marginStart="5dp"
+        android:layout_marginEnd="5dp"
+        android:layout_marginBottom="3dp"
+        android:background="@drawable/roundview"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.466"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:visibility="gone" />
+
+    <TextView
+        android:id="@+id/nan2_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="BusVision"
+        android:textColor="@color/white"
+        android:textSize="30dp"
+        android:visibility="visible"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/nan2_pop"
+        tools:visibility="gone" />
+
+    <TextView
+        android:id="@+id/nan2_text2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="20dp"
+        android:text="번 버스가 맞습니까?"
+        android:textColor="@color/white"
+        android:textSize="20dp"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="@+id/nan_pop"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.735"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:visibility="gone" />
+
+    <TextView
+        android:id="@+id/nan2_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="20dp"
+        android:background="#3B80AE"
+        android:text="141"
+        android:textAlignment="textEnd"
+        android:textColor="@color/white"
+        android:textSize="20dp"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="@+id/nan_pop"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.253"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:visibility="gone" />
 
     <View
         android:id="@+id/finding_pop"
@@ -128,11 +253,11 @@
         android:layout_marginEnd="5dp"
         android:layout_marginBottom="3dp"
         android:background="@drawable/roundview"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.466"
-        app:layout_constraintStart_toStartOf="parent"
-        />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <TextView
         android:id="@+id/finding_title"
@@ -142,6 +267,7 @@
         android:text="정류소 찾기"
         android:textColor="@color/white"
         android:textSize="30dp"
+        android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/finding_pop" />
@@ -154,24 +280,11 @@
         android:text="정류소를 찾고 있습니다...."
         android:textColor="@color/white"
         android:textSize="20dp"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="@+id/finding_pop"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.479"
-        app:layout_constraintStart_toStartOf="parent"
-        />
-
-    <TextView
-        android:id="@+id/modename"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Bus Vision: 정류소 찾기"
-        android:textColor="@color/white"
-        android:textSize="25dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.009" />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <View
         android:id="@+id/foundstop_pop"
@@ -181,6 +294,7 @@
         android:layout_marginEnd="5dp"
         android:layout_marginBottom="3dp"
         android:background="@drawable/roundview"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.466"
@@ -194,6 +308,7 @@
         android:text="'성남역' 정류소를 찾았습니다."
         android:textColor="@color/white"
         android:textSize="30dp"
+        android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@+id/foundstop_pop" />
@@ -204,6 +319,7 @@
         android:layout_height="124dp"
         android:layout_marginStart="44dp"
         android:layout_marginTop="108dp"
+        android:visibility="gone"
         app:layout_constraintStart_toStartOf="@+id/foundstop_pop"
         app:layout_constraintTop_toTopOf="@+id/foundstop_pop" />
 
@@ -212,10 +328,11 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="200dp"
-        android:text="정차노선:"
+        android:text=""
+        android:textAlignment="center"
         android:textColor="@color/white"
         android:textSize="20dp"
-        android:textAlignment="center"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="@+id/foundstop_pop"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
@@ -225,9 +342,10 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="20dp"
-        android:text="이용하시려는 노선이 있습니까?"
+        android:text="이 곳에서 승차하시겠습니까?"
         android:textColor="@color/white"
         android:textSize="20dp"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="@+id/foundstop_pop"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
@@ -241,37 +359,38 @@
         android:layout_marginEnd="5dp"
         android:layout_marginBottom="3dp"
         android:background="@drawable/roundview"
+        android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.466"
-        app:layout_constraintStart_toStartOf="parent"
-        />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <TextView
         android:id="@+id/foundbus_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="9707번 버스를 찾았습니다."
+        android:text="141번 버스가 도착하고 있습니다."
         android:textColor="@color/white"
-        android:textSize="30dp"
+        android:textSize="25dp"
+        android:visibility="visible"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/finding_pop" />
+        app:layout_constraintTop_toTopOf="@+id/foundbus_pop" />
 
     <TextView
         android:id="@+id/foundbus_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="12dp"
-        android:text="승차하시겠습니까?"
+        android:text="이 버스에 승차하시겠습니까?"
         android:textColor="@color/white"
         android:textSize="20dp"
-        app:layout_constraintBottom_toBottomOf="@+id/finding_pop"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="@+id/foundbus_pop"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.479"
-        app:layout_constraintStart_toStartOf="parent"
-        />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <View
         android:id="@+id/founddoor_pop"
@@ -281,11 +400,11 @@
         android:layout_marginEnd="5dp"
         android:layout_marginBottom="3dp"
         android:background="@drawable/roundview"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.466"
-        app:layout_constraintStart_toStartOf="parent"
-        />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <TextView
         android:id="@+id/founddoor_title"
@@ -295,23 +414,24 @@
         android:text="문을 찾았습니다."
         android:textColor="@color/white"
         android:textSize="30dp"
+        android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/finding_pop" />
+        app:layout_constraintTop_toTopOf="@+id/founddoor_pop" />
 
     <TextView
         android:id="@+id/founddoor_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="12dp"
-        android:text="사용자의 왼쪽에 문이 있습니다."
+        android:text="사용자로부터 정면에 문이 있습니다."
         android:textColor="@color/white"
         android:textSize="20dp"
-        app:layout_constraintBottom_toBottomOf="@+id/finding_pop"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@+id/founddoor_pop"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.479"
-        app:layout_constraintStart_toStartOf="parent"
-        />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <Button
         android:id="@+id/gptTest1"

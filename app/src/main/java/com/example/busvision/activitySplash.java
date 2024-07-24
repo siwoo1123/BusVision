@@ -25,7 +25,7 @@ public class activitySplash extends AppCompatActivity {
 
         //splash 3초 동안 뜨게 한다.
         Handler hd = new Handler();
-        hd.postDelayed(new splashHandler(), 3000);
+        hd.postDelayed(new splashHandler(), 2000);
     }
 
     //SplashHandler 클래스 생성

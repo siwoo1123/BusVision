@@ -12,16 +12,16 @@ import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
+import android.util.Base64;
 import android.util.DisplayMetrics;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -42,12 +42,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.busvision.ml.Stopmodel;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.OnProgressListener;
 import com.google.firebase.storage.StorageReference;
-import com.google.firebase.storage.UploadTask;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvException;
 
@@ -57,6 +53,7 @@ import org.json.JSONObject;
 import org.tensorflow.lite.DataType;
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -85,6 +82,9 @@ public class MainActivity extends AppCompatActivity {
     // TEST
     final boolean DEBUG = false;
 
+    // 공통
+    String wantBsNm;
+
     // 화면-코드 연결
     ImageView stop;
     ImageView bus;
@@ -93,6 +93,17 @@ public class MainActivity extends AppCompatActivity {
     TextView busTxt;
     TextView doorTxt;
     TextView modeTxt;
+
+    // Nan View
+    View nPop;
+    TextView nTitle;
+    TextView nContext;
+
+    // Nan View2
+    View n2Pop;
+    TextView n2Title;
+    TextView n2Context1;
+    TextView n2Context2;
 
     // Finding View
     View fdPop;
@@ -154,6 +165,9 @@ public class MainActivity extends AppCompatActivity {
     String ans = "";
     SpeechRecognizer mRecognizer;
     boolean isSpeaking = false;
+    boolean afterKnowNumber = false;
+    boolean afterRun = false;
+    boolean afterRun2 = false;
 
     // Recycler View
     LinearLayoutManager layoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
@@ -163,10 +177,10 @@ public class MainActivity extends AppCompatActivity {
     // GPT
     OkHttpClient client;
     public static  final MediaType JSON = MediaType.get("application/json; charset=utf-8");
-    private static final String MY_SECRET_KEY = "<OPENAI_API_KEY>";
-    final String imageUrl = "https://firebasestorage.googleapis.com/v0/b/busvision-92f29.appspot.com/o/busvision_image.jpg?alt=media&token=6c8d67b5-0f14-4324-a099-9e2a118943f4";
+    private static final String MY_SECRET_KEY = "<MY_API_KEY>";
+    String imageUrl = "";
     final String[] ansForGpt = {"Error"};
-    boolean isEmpty = false;
+    boolean isEmpty = true;
 
     // 모드
     int mode = 1; // 1: stop, 2: bus, 3: door
@@ -176,7 +190,17 @@ public class MainActivity extends AppCompatActivity {
         String txt = "BusVision: ";
 
         // 모드별로 변하는거
-        if (md == 1) {
+        if (md == 0) {
+            findSomethingView(false);
+            foundStopView(false);
+            foundBusView(false);
+            foundDoorView(false);
+            nanView(true);
+            nan2View(false);
+            stopClr = Color.GRAY;
+            busClr = Color.GRAY;
+            doorClr = Color.GRAY;
+        } else if (md == 1) {
             try {
                 speak("정류소 찾기 모드입니다.");
             } catch (Exception ignored) {}
@@ -185,26 +209,30 @@ public class MainActivity extends AppCompatActivity {
             doorClr = Color.GRAY;
             txt += "정류소 찾기";
             fdTitle.setText("정류소 찾기");
-            fdContext.setText("정류소를 찾고있습니다...");
+            fdContext.setText("정류소를 찾고있습니다.");
             findSomethingView(true);
             foundStopView(false);
             foundBusView(false);
             foundDoorView(false);
+            nanView(false);
+            nan2View(false);
             nowScreen=0;
         } else if (md == 2) {
             try {
-                speak("버스 찾기 모드입니다.");
+                speak("버스 찾기 모드입니다. 정류소 앞 쪽으로 이동해 주세요.");
             } catch (Exception ignored) {}
             stopClr = Color.GRAY;
             busClr = Color.WHITE;
             doorClr = Color.GRAY;
             txt += "버스 찾기";
             fdTitle.setText("버스 찾기");
-            fdContext.setText("버스를 찾고있습니다...");
+            fdContext.setText("버스를 찾고있습니다.\n정류소 앞 쪽으로 이동해 주세요.");
             findSomethingView(true);
             foundStopView(false);
             foundBusView(false);
             foundDoorView(false);
+            nanView(false);
+            nan2View(false);
             nowScreen=2;
         } else {
             try {
@@ -220,6 +248,8 @@ public class MainActivity extends AppCompatActivity {
             foundStopView(false);
             foundBusView(false);
             foundDoorView(false);
+            nanView(false);
+            nan2View(false);
             nowScreen=4;
         }
 
@@ -239,6 +269,7 @@ public class MainActivity extends AppCompatActivity {
         stopSTT();
     }
 
+    @SuppressLint("MissingInflatedId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -274,6 +305,16 @@ public class MainActivity extends AppCompatActivity {
         fndPop = findViewById(R.id.founddoor_pop);
         fndTitle = findViewById(R.id.founddoor_title);
         fndContext = findViewById(R.id.founddoor_text);
+
+        // Nan View
+        nPop = findViewById(R.id.nan_pop);
+        nTitle = findViewById(R.id.nan_title);
+        nContext = findViewById(R.id.nan_text);
+
+        n2Pop = findViewById(R.id.nan2_pop);
+        n2Title = findViewById(R.id.nan2_title);
+        n2Context1 = findViewById(R.id.nan2_text);
+        n2Context2 = findViewById(R.id.nan2_text2);
 
         // gpt
         client = new OkHttpClient().newBuilder()
@@ -324,8 +365,7 @@ public class MainActivity extends AppCompatActivity {
             imageCapture = new ImageCapture.Builder().build();
         }
 
-        //TODO: 임시로 기본모드 2로 해놨음
-        changeMode(2);
+        changeMode(0);
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -354,17 +394,6 @@ public class MainActivity extends AppCompatActivity {
         intent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE,getPackageName());
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"ko-KR");   // 텍스트로 변환시킬 언어 설정
 
-//        top.setOnClickListener(v -> {
-//            SpeechRecognizer mRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
-//            mRecognizer.setRecognitionListener(listener);
-//            mRecognizer.startListening(intent);
-//        });
-//
-//        fsPop.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) { useTTS(1, "성남역", "720-1번 이매촌 안말고교 방면"); }
-//        });
-//
 
         findSomethingView(true);
         foundStopView(false);
@@ -376,170 +405,186 @@ public class MainActivity extends AppCompatActivity {
 
         adapter.notifyDataSetChanged();
 
-        stop.setOnClickListener(new View.OnClickListener() {
+        new Handler().postDelayed(new Runnable() {
             @Override
-            public void onClick(View v) {
-                changeMode(1);
-            }
-        });
-
-        stopTxt.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                changeMode(1);
-            }
-        });
-
-        bus.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                changeMode(2);
-            }
-        });
-
-        busTxt.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                changeMode(2);
-            }
-        });
-
-        door.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                changeMode(3);
-            }
-        });
-
-        doorTxt.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                changeMode(3);
-            }
-        });
-
-        if (!DEBUG) {
-            Timer timer = new Timer();
-            TimerTask timerTask = new TimerTask() {
-                @Override
-                public void run() {
-                    MainActivity.this.runOnUiThread(new Runnable() {
-                        @SuppressLint("SetTextI18n")
-                        @Override
-                        public void run() {
-                            toastMsg("작동시작~!");
-                            Bitmap img;
-                            if (mode == 1 && nowScreen == 0) {
-                                img = captureImage();
-                                if (isStop(img) && lati > 0 && glong > 0) {
-                                    try {
-                                        nowScreen = 1;
-                                        getStopInfo(lati, glong);
-                                    } catch (IOException | CsvException e) {
-                                        toastMsg("오류가 발생하였습니다.");
-                                    }
-                                }
-                            } else if (mode == 2 && nowScreen == 2) {
-                                captureImage();
-                                if (isBus()) {
-                                    nowScreen = 3;
-                                    callAPI("이건 몇번 버스인지 알수 있어? 알수 있다면 번호만, 알 수 없으면 null이라고만 답변해줘 ", imageUrl);
-                                    while (isEmpty) { }
-                                    String busNm = ansForGpt[0];
-
-                                    fbTitle.setText(busNm + "번 버스를 찾았습니다.");
-
-                                    findSomethingView(false);
-                                    foundBusView(true);
-                                    foundDoorView(false);
-
-                                    System.out.println(busNm);
-                                    if (Objects.equals(busNm, "null")) {
-                                        nowScreen=2;
-                                        mode=2;
-                                        toastMsg("노선 번호를 읽을 수 없습니다..");
-                                    } else {
-                                        useTTS(2, busNm, "");
-                                        while (tts.isSpeaking()) {
-                                        }
-                                        useSTT();
-                                    }
-                                }
-                            } else if (mode == 3 && nowScreen == 4) {
-                                captureImage();
-                            /*
-                            ----문----
-                            1: 좌측
-                            2: 전방
-                            3: 우측
-                            4: 버스아님
-                            5: 오류
-                             */
-                                int whereIsDoor = whereDoor();
-
-                                switch (whereIsDoor) {
-                                    case 1: {
-                                        nowScreen = 5;
-                                        useTTS(3,"","좌측");
-                                        fndContext.setText("사용자로부터 좌측에 문이 있습니다.");
-                                        foundDoorView(true);
-                                        findSomethingView(false);
-                                        break;
-                                    }
-                                    case 2: {
-                                        nowScreen = 5;
-                                        useTTS(3,"","전방");
-                                        fndContext.setText("사용자로부터 전방에 문이 있습니다.");
-                                        foundDoorView(true);
-                                        findSomethingView(false);
-                                        break;
-                                    }
-                                    case 3: {
-                                        nowScreen = 5;
-                                        useTTS(3,"","우측");
-                                        fndContext.setText("사용자로부터 우측에 문이 있습니다.");
-                                        foundDoorView(true);
-                                        findSomethingView(false);
-                                        break;
-                                    }
-                                    case 4: {
-                                        break;
-                                    }
-                                    case 5: {
-                                        toastMsg("오류가 발생하였습니다");
-                                        break;
-                                    }
-                                }
+            public void run() {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        stop.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                changeMode(1);
                             }
+                        });
+
+                        stopTxt.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                changeMode(1);
+                            }
+                        });
+
+                        bus.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                changeMode(2);
+                            }
+                        });
+
+                        busTxt.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                changeMode(2);
+                            }
+                        });
+
+                        door.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                changeMode(3);
+                            }
+                        });
+
+                        doorTxt.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                changeMode(3);
+                            }
+                        });
+
+                        if (!DEBUG) {
+                            Timer timer = new Timer();
+                            TimerTask timerTask = new TimerTask() {
+                                @Override
+                                public void run() {
+                                    MainActivity.this.runOnUiThread(new Runnable() {
+                                        @SuppressLint("SetTextI18n")
+                                        @Override
+                                        public void run() {
+                                            final Bitmap[] img = new Bitmap[1];
+                                            if (mode == 0 && !afterRun) {
+                                                afterRun = true;
+                                                speak("몇 번, 버스를 이용하시겠습니까?");
+                                                while (tts.isSpeaking()) {}
+                                                useSTT();
+                                            } else if (mode == 1 && nowScreen == 0) {
+                                                img[0] = captureImage();
+                                                if (isStop(img[0]) && lati > 0 && glong > 0) {
+                                                    try {
+                                                        nowScreen = 1;
+                                                        getStopInfo(lati, glong);
+                                                    } catch (IOException | CsvException e) {
+                                                        toastMsg("오류가 발생하였습니다.");
+                                                    }
+                                                }
+                                            } else if (mode == 2 && nowScreen == 2) {
+                                                new Thread(new Runnable() {
+                                                    @Override
+                                                    public void run() {
+                                                        runOnUiThread(new Runnable() {
+                                                            @Override
+                                                            public void run() {
+                                                                img[0] = captureImage();
+                                                                if (isBus(img[0])) {
+                                                                    nowScreen = 3;
+                                                                    String busNm = ansForGpt[0];
+                                                                    fbTitle.setText(busNm + "번 버스가 도착하고 있습니다.");
+                                                                    System.out.println(busNm);
+
+                                                                    findSomethingView(false);
+                                                                    foundBusView(true);
+                                                                    foundDoorView(false);
+
+                                                                    useTTS(2, busNm, "");
+                                                                    while (tts.isSpeaking()) {}
+                                                                    useSTT();
+                                                                }
+
+                                                            }
+                                                        });
+                                                    }
+                                                }).start();
+                                            } else if (mode == 3 && nowScreen == 4) {
+                                                img[0] = captureImage();
+                                                int whereIsDoor = whereDoor(img[0]);
+
+                                                switch (whereIsDoor) {
+                                                    case 1: {
+                                                        nowScreen = 5;
+                                                        useTTS(3,"","좌측");
+                                                        fndContext.setText("사용자로부터 좌측에 문이 있습니다.");
+                                                        foundDoorView(true);
+                                                        findSomethingView(false);
+                                                        break;
+                                                    }
+                                                    case 2: {
+                                                        nowScreen = 5;
+                                                        useTTS(3,"","전방");
+                                                        fndContext.setText("사용자로부터 전방에 문이 있습니다.");
+                                                        foundDoorView(true);
+                                                        findSomethingView(false);
+                                                        break;
+                                                    }
+                                                    case 3: {
+                                                        nowScreen = 5;
+                                                        useTTS(3,"","우측");
+                                                        fndContext.setText("사용자로부터 우측에 문이 있습니다.");
+                                                        foundDoorView(true);
+                                                        findSomethingView(false);
+                                                        break;
+                                                    }
+                                                    case 4: {
+                                                        break;
+                                                    }
+                                                    case 5: {
+                                                        toastMsg("오류가 발생하였습니다");
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    });
+                                }
+                            };
+
+                            timer.schedule(timerTask, 0, 1000);
+                        } else {
+                //            previewView.setVisibility(View.GONE);
+                //            Button gptTest1 = findViewById(R.id.gptTest1);
+                //            Button gptTest2 = findViewById(R.id.gptTest2);
+                //
+                //            gptTest1.setVisibility(View.VISIBLE);
+                //            gptTest2.setVisibility(View.VISIBLE);
+                //
+                //            gptTest1.setOnClickListener(new View.OnClickListener() {
+                //                @Override
+                //                public void onClick(View v) {
+                //                    callAPI("이세계아이돌의 모든 멤버와 그들의 나이를 알려줘", null);
+                //                }
+                //            });
+                //
+                //            gptTest2.setOnClickListener(new View.OnClickListener() {
+                //                @Override
+                //                public void onClick(View v) {
+                //                    callAPI(
+                //                            "이건 버스니? 맞다면 몇번이니?",
+                //                            "https://i.ytimg.com/vi/WhRKFDQ3kX8/maxresdefault.jpg"
+                //                    );
+                //                }
+                //            });
+                            changeMode(3);
+                            findSomethingView(false);
+                            foundDoorView(true);
+                            foundBusView(false);
+                            foundStopView(false);
+                            nan2View(false);
+                            nanView(false);
                         }
-                    });
-                }
-            };
-
-            timer.schedule(timerTask, 1000, 60000);
-        } else {
-            previewView.setVisibility(View.GONE);
-            Button gptTest1 = findViewById(R.id.gptTest1);
-            Button gptTest2 = findViewById(R.id.gptTest2);
-
-            gptTest1.setVisibility(View.VISIBLE);
-            gptTest2.setVisibility(View.VISIBLE);
-
-            gptTest1.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    callAPI("너는 누구니?", null);
-                }
-            });
-
-            gptTest2.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    callAPI("이 이미지를 묘사해줘", "https://firebasestorage.googleapis.com/v0/b/login-register-example-483bd.appspot.com/o/v8JjSOBS3fVxftuJFJ8cRihKMQn2%2Fcarbon%20(11).png?alt=media&token=fe6f202e-374e-41b9-99f0-4a69dd7ee8b7");
-                }
-            });
-        }
-
+                    }
+                });
+            }
+        }, 1000);
     }
 
     @Override
@@ -598,15 +643,15 @@ public class MainActivity extends AppCompatActivity {
         switch (mode) {
             case 1: {
                 script += titleText + "정류소를 찾았습니다. ";
-                script += "이 정류소의 정차노선은, " + detail + "입니다. ";
-                script += "이용하시려는 노선이 있습니까? 네 또는 아니오로 답해주십시오.";
+                script += "이 정류소에서 " + wantBsNm + "번 버스는 " + detail + " 방향으로 운행됩니다. ";
+                script += "이곳에서 승차하시겠습니까? 네 또는 아니오로 답해주십시오.";
                 break;
             }
             case 2: {
-                script += titleText + "번 버스를 찾았습니다. ";
+                script += titleText + "번 버스가 정류소에 도착하고 있습니다. ";
                 if (!detail.isEmpty())
                     script += "이 버스는, " + detail + "입니다. ";
-                script += "승차하시겠습니까? 네 또는 아니오로 답해주십시오.";
+                script += "이 버스에 승차하시겠습니까? 네 또는 아니오로 답해주십시오.";
                 break;
             }
             case 3: {
@@ -638,8 +683,8 @@ public class MainActivity extends AppCompatActivity {
     private RecognitionListener listener = new RecognitionListener() {
         @Override
         public void onReadyForSpeech(Bundle params) {
-            toastMsg("음성인식을 시작합니다.", false);
-            System.out.println("お");
+            afterRun2 = false;
+            isSpeaking = true;
         }
 
         @Override
@@ -657,13 +702,26 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onError(int error) {
             stopSTT();
-            toastMsg("다시 말씀해주세요");
-            useSTT();
+            new Handler().postDelayed(new Runnable() {
+                @Override
+                public void run()
+                {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            System.out.println(error);
+                            toastMsg("다시 말씀해주세요");
+                            while (tts.isSpeaking()) {}
+                            useSTT();
+                        }
+                    });
+                }
+            }, 600);
         }
 
         @Override
         public void onResults(Bundle results) {
-            // 말을 하면 ArrayList에 단어를 넣고 textView에 단어를 이어준다.
+            isSpeaking=false;
             ArrayList<String> matches =
                     results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
             ans = "";
@@ -672,15 +730,111 @@ public class MainActivity extends AppCompatActivity {
             }
             stopSTT();
 
-            int yesMd=mode+1, noMd=mode;
+            if (afterKnowNumber) {
+                int yesMd = mode + 1, noMd = mode;
 
-            if (ans.equals("네") || ans.equals("예")) {
-                changeMode(yesMd);
-            } else if (ans.equals("아니오") || ans.equals("아니요")) {
-                changeMode(noMd);
+                if (ans.equals("네") || ans.equals("예")) {
+                    changeMode(yesMd);
+                } else if ((ans.equals("아니오") || ans.equals("아니요")) && mode > 0) {
+                    changeMode(noMd);
+                } else if (ans.equals("아니오") || ans.equals("아니요")) {
+                    afterKnowNumber = false;
+                    changeMode(noMd);
+                    afterRun=false;
+                } else {
+                    System.out.println("수원");
+                    toastMsg("다시 말씀해주세요");
+                    while (tts.isSpeaking()) {
+                    }
+                    useSTT();
+                }
             } else {
-                toastMsg("다시 말씀해주세요");
-                useSTT();
+                wantBsNm = ans;
+                if(Objects.equals(ans.substring(ans.length()-1), "번")) {
+                    wantBsNm = ans.substring(0, ans.length()-1);
+                }
+
+                StringBuilder wantBsNm2 = new StringBuilder();
+                for (char c : wantBsNm.toCharArray()) {
+                    if(c>=97&&c<=122){ //소문자를 대문자로 변경
+                        wantBsNm2.append((char) (c - 32));
+                    } else if (c != ' ') {
+                        wantBsNm2.append(c);
+
+                    }
+                }
+                wantBsNm = wantBsNm2.toString();
+
+                AssetManager assetManager = getAssets();
+                InputStream inputStream = null;
+                try {
+                    inputStream = assetManager.open("busInfo.csv");
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                CSVReader csvReader = new CSVReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+
+                List<String[]> allContent = null;
+                try {
+                    allContent = csvReader.readAll();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                } catch (CsvException e) {
+                    throw new RuntimeException(e);
+                }
+
+                final boolean[] flag = {true};
+
+                allContent.forEach(stop -> {
+                    if(Objects.equals(stop[1],wantBsNm)){
+                        n2Context1.setText(wantBsNm);
+                        int color = 7;
+                        try {
+                            color = whatColorIsThisBus(wantBsNm);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        } catch (CsvException e) {
+                            throw new RuntimeException(e);
+                        }
+                        switch (color) {
+                            case 1:
+                                n2Context1.setBackgroundColor(Color.parseColor("#009775"));
+                                break;
+                            case 2:
+                                n2Context1.setBackgroundColor(Color.parseColor("#3B80AE"));
+                                break;
+                            case 3:
+                                n2Context1.setBackgroundColor(Color.parseColor("#598526"));
+                                break;
+                            case 4:
+                                n2Context1.setBackgroundColor(Color.parseColor("#FF0000"));
+                                break;
+                            case 5:
+                                n2Context1.setBackgroundColor(Color.parseColor("#C68400"));
+                                break;
+                            case 6:
+                                n2Context1.setBackgroundColor(Color.parseColor("#451e00"));
+                                break;
+                            case 7:
+                                n2Context1.setBackgroundColor(Color.parseColor("#000000"));
+                                break;
+                        }
+                        flag[0] = false;
+                        nanView(false);
+                        nan2View(true);
+                        speak(wantBsNm+"번, 버스가 맞습니까? 네 또는 아니오로 답해주십시오.");
+                        afterKnowNumber=true;
+                        while (tts.isSpeaking()) {}
+                        useSTT();
+                    }
+                });
+                if(flag[0]) {
+                    System.out.println("병점");
+                    toastMsg("다시 말씀해주세요.");
+                    while (tts.isSpeaking()) {
+                    }
+                    useSTT();
+                }
             }
         }
 
@@ -690,6 +844,32 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onEvent(int eventType, Bundle params) {}
     };
+
+    void nanView(boolean visibility) {
+        if (visibility) {
+            nPop.setVisibility(View.VISIBLE);
+            nTitle.setVisibility(View.VISIBLE);
+            nContext.setVisibility(View.VISIBLE);
+        } else {
+            nPop.setVisibility(View.GONE);
+            nTitle.setVisibility(View.GONE);
+            nContext.setVisibility(View.GONE);
+        }
+    }
+
+    void nan2View(boolean visibility) {
+        if (visibility) {
+            n2Pop.setVisibility(View.VISIBLE);
+            n2Title.setVisibility(View.VISIBLE);
+            n2Context1.setVisibility(View.VISIBLE);
+            n2Context2.setVisibility(View.VISIBLE);
+        } else {
+            n2Pop.setVisibility(View.GONE);
+            n2Title.setVisibility(View.GONE);
+            n2Context1.setVisibility(View.GONE);
+            n2Context2.setVisibility(View.GONE);
+        }
+    }
 
     void findSomethingView(boolean visibility) {
         if (visibility) {
@@ -796,8 +976,6 @@ public class MainActivity extends AppCompatActivity {
 
 
         if(!Objects.equals(nowStop, stopAbout[0][0])) {
-
-//            String titleText = howLongThisTextIs2(stopAbout[0][2]) + " (" + stopAbout[0][1] + ")";
             String titleText = howLongThisTextIs2(stopAbout[0][2]) + " (" + stopNumberReformatting(stopAbout[0][1]) + ")";
 
             fsTitle.setText(titleText);
@@ -805,25 +983,33 @@ public class MainActivity extends AppCompatActivity {
             emptyRecyclerView();
             final String[] detail = {""};
 
+            final boolean[] visible = {false};
             stopRoute.forEach(line -> {
                 try {
-                    String nextStop = findNextStop(line[0],line[2]);
-                    adapter.addItem(new UserAdapter.Item(howLongThisTextIs(line[1]), howLongThisTextIs2(nextStop)+"방향", whatColorIsThisBus(line[1])));
-                    detail[0] += line[1] + "번 " + nextStop + "방향, ";
-//                    System.out.println(detail[0]);
+                    if(Objects.equals(line[1], wantBsNm)){
+                        String nextStop = findNextStop(line[0],line[2]);
+                        visible[0] = true;
+                        detail[0] += nextStop;
+                        adapter.addItem(new UserAdapter.Item(howLongThisTextIs(line[1]), howLongThisTextIs2(nextStop)+"방향", whatColorIsThisBus(line[1])));
+                    }
                 } catch (IOException | CsvException e) {
                     toastMsg("오류가 발생하였습니다.");
+                    visible[0] = false;
                 }
             });
             nowStop = stopAbout[0][0];
             adapter.notifyDataSetChanged();
 
-            findSomethingView(false);
-            foundStopView(true);
+            findSomethingView(!visible[0]);
+            foundStopView(visible[0]);
 
-            useTTS(1, stopAbout[0][2], detail[0]);
-            while (tts.isSpeaking()) {}
-            useSTT();
+            if(visible[0]) {
+                useTTS(1, stopAbout[0][2], detail[0]);
+                while (tts.isSpeaking()) {}
+                useSTT();
+            } else {
+                nowScreen=0;
+            }
         }
     }
 
@@ -898,17 +1084,14 @@ public class MainActivity extends AppCompatActivity {
 
             int imageSize = 224;
 
-            // Creates inputs for reference.
             TensorBuffer inputFeature0 = TensorBuffer.createFixedSize(new int[]{1, imageSize, imageSize, 3}, DataType.FLOAT32);
 
             ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4 * imageSize * imageSize * 3);
             byteBuffer.order(ByteOrder.nativeOrder());
 
-            // get 1D array of 224 * 224 pixels in image
             int [] intValues = new int[imageSize * imageSize];
             image.getPixels(intValues, 0, image.getWidth(), 0, 0, image.getWidth(), image.getHeight());
 
-            // iterate over pixels and extract R, G, and B values. Add to bytebuffer.
             int pixel = 0;
             for(int i = 0; i < imageSize; i++){
                 for(int j = 0; j < imageSize; j++){
@@ -921,12 +1104,10 @@ public class MainActivity extends AppCompatActivity {
 
             inputFeature0.loadBuffer(byteBuffer);
 
-            // Runs model inference and gets result.
             Stopmodel.Outputs outputs = model.process(inputFeature0);
             TensorBuffer outputFeature0 = outputs.getOutputFeature0AsTensorBuffer();
 
             float[] confidences = outputFeature0.getFloatArray();
-            // find the index of the class with the biggest confidence.
             int maxPos = 0;
             float maxConfidence = 0;
             for(int i = 0; i < confidences.length; i++){
@@ -944,17 +1125,42 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    boolean isBus(){
-        uploadFile(
-                new File(filePath)
-        );
+    boolean isBus(Bitmap img){
+        try {
+            uploadFile(img);
 
-        callAPI("이건 버스니? 맞다면 'true', 아니라면 'false'라고만 대답해줘", imageUrl);
-        while (isEmpty) { }
-        String gptRes = ansForGpt[0];
+            ansForGpt[0] = "";
+            callAPI("이 사진은 대한민국 서울특별시의 한 도로에서 찍힌 사진이야. 이건 " + wantBsNm + "번 버스니? 맞으면 버스의 번호만을 다시한번만 보내주고" +
+                    "아니면 null이라고만 보내줘. 예시: " + wantBsNm + "번 버스일 경우 '" + wantBsNm + "'라고만 대답, 버스가 아닐 경우 'null'이라고 대답해줘.", imageUrl);
 
-        if (Objects.equals(gptRes, "true")) return true;
-        return false;
+            final boolean[] res = new boolean[1];
+            final boolean[] isRunning = {true};
+
+            Timer timer = new Timer();
+            TimerTask timerTask = new TimerTask() {
+                @Override
+                public void run() {
+                    if(Objects.equals(ansForGpt[0], "null")) {
+                        res[0] = false;
+                        isRunning[0] = false;
+                        timer.cancel();
+                    } else if(Objects.equals(ansForGpt[0], wantBsNm)) {
+                        res[0] = true;
+                        isRunning[0] = false;
+                        timer.cancel();
+                    } else if(!Objects.equals(ansForGpt[0],"")) {
+                        res[0] = false;
+                        isRunning[0] = false;
+                        timer.cancel();
+                    }
+                }
+            };
+            timer.schedule(timerTask, 0, 10);
+            while (isRunning[0]) {}
+            return res[0];
+        } catch (Exception ignore) {
+            return false;
+        }
     }
 
     /*
@@ -965,19 +1171,17 @@ public class MainActivity extends AppCompatActivity {
     4: 버스아님
     5: 오류
      */
-    int whereDoor() {
+    int whereDoor(Bitmap img) {
         try {
-            uploadFile(
-                new File(filePath)
-            );
-
-            callAPI("내가 지금 사진에 나와있는 대로 보고있다고 가정할게, 그렇다면 우리쪽에서 버스의 '앞'문은 어디에 있는지 정확히 묘사해줘. '우리쪽'에서 좌측이면 1, 전방에 있으면 2, 우측에 있으면 3, 버스를 인식하지 못했다면 4라고'만' 대답해줘,", imageUrl);
-            while (isEmpty) {
-            }
+            uploadFile(img);
+            callAPI("이 사진은 대한민국 서울특별시의 한 도로에서 찍힌 사진이야. 우리가 지금 사진  대로 보고있다고 가정할게," +
+                    "만일 버스가 우리의 바로 앞에 있을 때, 우리쪽에서 버스의 '앞'문은 어디에 있는지 정확히 묘사해줘." +
+                    "'우리가 있는 쪽'에서 좌측이면 1, 전방에 있으면 2, 우측에 있으면 3, 버스를 인식하지 못했거나 바로 앞에 있지 않다면 4 라고'만' 대답해줘,", imageUrl);
+            while (isEmpty) {}
             String gptRes = ansForGpt[0];
 
             return Integer.parseInt(gptRes);
-        } catch (Exception e) {
+        } catch (Exception ignore) {
             return 5;
         }
     }
@@ -990,27 +1194,16 @@ public class MainActivity extends AppCompatActivity {
                 "busvision_image.jpg"
         );
 
-//        File[] files = getExternalCacheDir().getAbsoluteFile().listFiles();
-//        System.out.println(getExternalCacheDir().getAbsoluteFile().toString());
-//        for (File file : files) {
-//            System.out.println(file.getName());
-//        }
-
         if (imageCapture == null) return null;
-
-        // ImageCapture.OutputFileOptions는 새로 캡처한 이미지를 저장하기 위한 옵션
-        // 저장 위치 및 메타데이터를 구성하는데 사용
         ImageCapture.OutputFileOptions outputOptions = new ImageCapture.OutputFileOptions.Builder(photoFile).build();
-//        imageCapture = new ImageCapture.Builder()
-//                .setTargetRotation(getWindowManager().getDefaultDisplay().getRotation())
-//                .build();
-        // takePicture를 통해 사진을 촬영.
         imageCapture.takePicture(
                 outputOptions,
                 ContextCompat.getMainExecutor(this),
                 new ImageCapture.OnImageSavedCallback() {
                     @Override
-                    public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) { }
+                    public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
+                        System.out.println("image saved");
+                    }
 
                     @Override
                     public void onError(@NonNull ImageCaptureException exception) {
@@ -1021,6 +1214,7 @@ public class MainActivity extends AppCompatActivity {
         );
 
         filePath = photoFile.getPath();
+        System.out.println("file path: " + filePath);
         return BitmapFactory.decodeFile(filePath);
     }
 
@@ -1050,7 +1244,6 @@ public class MainActivity extends AppCompatActivity {
         mRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
         mRecognizer.setRecognitionListener(listener);
         mRecognizer.startListening(intent);
-        System.out.println("い");
     }
 
     public void stopSTT(){
@@ -1064,6 +1257,7 @@ public class MainActivity extends AppCompatActivity {
 
     void callAPI(String question, String imageUrl){
         isEmpty=true;
+        System.out.println(question);
         JSONArray arr = new JSONArray();
         JSONObject userMsg = new JSONObject();
         try {
@@ -1098,7 +1292,7 @@ public class MainActivity extends AppCompatActivity {
 
         JSONObject object = new JSONObject();
         try {
-            object.put("model", "gpt-4o-mini");
+            object.put("model", "gpt-4o");
             object.put("messages", arr);
 
         } catch (JSONException e){
@@ -1114,7 +1308,7 @@ public class MainActivity extends AppCompatActivity {
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
-//                toastMsg("오류가 발생하였습니다.");
+                toastMsg("오류가 발생하였습니다.");
             }
 
             @Override
@@ -1128,34 +1322,26 @@ public class MainActivity extends AppCompatActivity {
                         String result = jsonArray.getJSONObject(0).getJSONObject("message").getString("content");
                         ansForGpt[0] = result.trim();
                         System.out.println(ansForGpt[0]);
+                        toastMsg(ansForGpt[0], false);
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
                     isEmpty=false;
                 } else {
-//                    toastMsg("오류가 발생하였습니다.");
+                    toastMsg("오류가 발생하였습니다.");
                 }
             }
         });
     }
 
-    void uploadFile(File localFile) {
-        Uri file = Uri.fromFile(localFile);
-        StorageReference riversRef = storageRef.child(file.getLastPathSegment());
-        UploadTask uploadTask = riversRef.putFile(file);
+    void uploadFile(Bitmap img) {
+        System.out.println("bit to base");
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        img.compress(Bitmap.CompressFormat.JPEG, 100, baos); // bm is the bitmap object
+        byte[] b = baos.toByteArray();
 
-        uploadTask.addOnFailureListener(new OnFailureListener() {
-            @Override
-            public void onFailure(@NonNull Exception exception) {
-            }
-        }).addOnProgressListener(new OnProgressListener<UploadTask.TaskSnapshot>() {
-            @Override
-            public void onProgress(@NonNull UploadTask.TaskSnapshot snapshot) {
-            }
-        }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-            @Override
-            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-            }
-        });
+        String encodedImage = Base64.encodeToString(b, Base64.DEFAULT);
+
+        imageUrl = "data:image/jpeg;base64,"+encodedImage;
     }
 }
