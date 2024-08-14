@@ -178,7 +178,7 @@ public class MainActivity extends AppCompatActivity {
     // GPT
     OkHttpClient client;
     public static  final MediaType JSON = MediaType.get("application/json; charset=utf-8");
-    private static final String MY_SECRET_KEY = "sk-proj-MBXKFyCeKnQu6905q3EoT3BlbkFJsZwwIbaHj0jLNyn2trDW";
+    private static final String MY_SECRET_KEY = "openai_key";
     String imageUrl = "";
     final String[] ansForGpt = {"Error"};
     boolean isEmpty = true;
