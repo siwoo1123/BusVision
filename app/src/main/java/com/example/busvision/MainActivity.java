@@ -1296,7 +1296,6 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onError(@NonNull ImageCaptureException exception) {
                         toastMsg("사진 촬영에 실패하였습니다.");
-                        System.out.println("あ (エラー): " + exception);
                     }
                 }
         );
