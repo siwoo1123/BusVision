@@ -41,6 +41,7 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.busvision.ml.Busmodel;
 import com.example.busvision.ml.Stopmodel;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
@@ -80,7 +81,7 @@ import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity {
     // TEST
-    final boolean DEBUG = false;
+    final boolean DEBUG = true;
 
     // 공통
     String wantBsNm;
@@ -177,13 +178,15 @@ public class MainActivity extends AppCompatActivity {
     // GPT
     OkHttpClient client;
     public static  final MediaType JSON = MediaType.get("application/json; charset=utf-8");
-    private static final String MY_SECRET_KEY = "<MY_API_KEY>";
+    private static final String MY_SECRET_KEY = "sk-proj-MBXKFyCeKnQu6905q3EoT3BlbkFJsZwwIbaHj0jLNyn2trDW";
     String imageUrl = "";
     final String[] ansForGpt = {"Error"};
     boolean isEmpty = true;
 
     // 모드
     int mode = 1; // 1: stop, 2: bus, 3: door
+    private boolean[] res;
+
     public void changeMode(int md) {
         // 변수
         int stopClr, busClr, doorClr;
@@ -395,7 +398,7 @@ public class MainActivity extends AppCompatActivity {
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"ko-KR");   // 텍스트로 변환시킬 언어 설정
 
 
-        findSomethingView(true);
+        findSomethingView(false);
         foundStopView(false);
         foundBusView(false);
         foundDoorView(false);
@@ -411,12 +414,14 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        stop.setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View v) {
-                                changeMode(1);
-                            }
-                        });
+                        if(!DEBUG) {
+                            stop.setOnClickListener(new View.OnClickListener() {
+                                @Override
+                                public void onClick(View v) {
+                                    changeMode(1);
+                                }
+                            });
+                        }
 
                         stopTxt.setOnClickListener(new View.OnClickListener() {
                             @Override
@@ -459,7 +464,6 @@ public class MainActivity extends AppCompatActivity {
                                 @Override
                                 public void run() {
                                     MainActivity.this.runOnUiThread(new Runnable() {
-                                        @SuppressLint("SetTextI18n")
                                         @Override
                                         public void run() {
                                             final Bitmap[] img = new Bitmap[1];
@@ -548,38 +552,72 @@ public class MainActivity extends AppCompatActivity {
                                 }
                             };
 
-                            timer.schedule(timerTask, 0, 1000);
+                            timer.schedule(timerTask, 100, 100);
                         } else {
-                //            previewView.setVisibility(View.GONE);
-                //            Button gptTest1 = findViewById(R.id.gptTest1);
-                //            Button gptTest2 = findViewById(R.id.gptTest2);
-                //
-                //            gptTest1.setVisibility(View.VISIBLE);
-                //            gptTest2.setVisibility(View.VISIBLE);
-                //
-                //            gptTest1.setOnClickListener(new View.OnClickListener() {
-                //                @Override
-                //                public void onClick(View v) {
-                //                    callAPI("이세계아이돌의 모든 멤버와 그들의 나이를 알려줘", null);
-                //                }
-                //            });
-                //
-                //            gptTest2.setOnClickListener(new View.OnClickListener() {
-                //                @Override
-                //                public void onClick(View v) {
-                //                    callAPI(
-                //                            "이건 버스니? 맞다면 몇번이니?",
-                //                            "https://i.ytimg.com/vi/WhRKFDQ3kX8/maxresdefault.jpg"
-                //                    );
-                //                }
-                //            });
-                            changeMode(3);
-                            findSomethingView(false);
-                            foundDoorView(true);
+//                            previewView.setVisibility(View.GONE);
+//                            Button gptTest1 = findViewById(R.id.gptTest1);
+//                            Button gptTest2 = findViewById(R.id.gptTest2);
+//
+//                            gptTest1.setVisibility(View.VISIBLE);
+//                            gptTest2.setVisibility(View.VISIBLE);
+//
+//                            gptTest1.setOnClickListener(new View.OnClickListener() {
+//                                @Override
+//                                public void onClick(View v) {
+////                                    callAPI("이세계아이돌의 모든 멤버와 그들의 나이를 알려줘", null);
+//                                    speak("141번 버스가 도착하고 있습니다. 이곳에서 승차하시겠습니까?");
+//                                }
+//                            });
+//
+//                            gptTest2.setOnClickListener(new View.OnClickListener() {
+//                                @Override
+//                                public void onClick(View v) {
+////                                    callAPI(
+////                                            "이건 버스니? 맞다면 몇번이니?",
+////                                            "https://i.ytimg.com/vi/WhRKFDQ3kX8/maxresdefault.jpg"
+////                                    );
+//                                    speak("문 찾기 모드입니다.");
+//                                    new Handler().postDelayed(new Runnable() {
+//                                        @Override
+//                                        public void run() {
+//                                            speak("사용자로부터 전방에 문이 있습니다.");
+//                                        }
+//                                    }, 4000);
+//
+//                                }
+//                            });
+                            changeMode(2);
+                            findSomethingView(true);
+                            foundDoorView(false);
                             foundBusView(false);
                             foundStopView(false);
                             nan2View(false);
                             nanView(false);
+
+                            final int[] cnt = {1};
+                            stop.setOnClickListener(new View.OnClickListener() {
+                                @Override
+                                public void onClick(View v) {
+                                    if (cnt[0] == 1) {
+                                        useTTS(2, "141", "");
+                                        foundBusView(true);
+                                        findSomethingView(false);
+                                        cnt[0] = 2;
+                                    } else if (cnt[0] == 2) {
+                                        changeMode(3);
+                                        cnt[0] = 3;
+                                    } else if (cnt[0] == 3) {
+                                        useTTS(3,"","좌측");
+                                        fndContext.setText("사용자로부터 좌측에 문이 있습니다.");
+                                        foundDoorView(true);
+                                        findSomethingView(false);
+                                        cnt[0] = 4;
+                                    }
+                                }
+                            });
+
+
+
                         }
                     }
                 });
@@ -635,6 +673,7 @@ public class MainActivity extends AppCompatActivity {
         int width = displayMetrics.widthPixels;
         int height = displayMetrics.heightPixels;
         return AspectRatio.RATIO_4_3; // 또는 적절한 화면 비율 선택
+//        return width/height;
     }
 
     void useTTS(int mode, String titleText, String detail) {
@@ -644,14 +683,14 @@ public class MainActivity extends AppCompatActivity {
             case 1: {
                 script += titleText + "정류소를 찾았습니다. ";
                 script += "이 정류소에서 " + wantBsNm + "번 버스는 " + detail + " 방향으로 운행됩니다. ";
-                script += "이곳에서 승차하시겠습니까? 네 또는 아니오로 답해주십시오.";
+                script += "이곳에서 승차하시겠습니까?";
                 break;
             }
             case 2: {
                 script += titleText + "번 버스가 정류소에 도착하고 있습니다. ";
                 if (!detail.isEmpty())
                     script += "이 버스는, " + detail + "입니다. ";
-                script += "이 버스에 승차하시겠습니까? 네 또는 아니오로 답해주십시오.";
+                script += "이 버스에 승차하시겠습니까?";
                 break;
             }
             case 3: {
@@ -686,19 +725,6 @@ public class MainActivity extends AppCompatActivity {
             afterRun2 = false;
             isSpeaking = true;
         }
-
-        @Override
-        public void onBeginningOfSpeech() {}
-
-        @Override
-        public void onRmsChanged(float rmsdB) {}
-
-        @Override
-        public void onBufferReceived(byte[] buffer) {}
-
-        @Override
-        public void onEndOfSpeech() {}
-
         @Override
         public void onError(int error) {
             stopSTT();
@@ -742,7 +768,6 @@ public class MainActivity extends AppCompatActivity {
                     changeMode(noMd);
                     afterRun=false;
                 } else {
-                    System.out.println("수원");
                     toastMsg("다시 말씀해주세요");
                     while (tts.isSpeaking()) {
                     }
@@ -829,20 +854,27 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
                 if(flag[0]) {
-                    System.out.println("병점");
                     toastMsg("다시 말씀해주세요.");
                     while (tts.isSpeaking()) {
                     }
                     useSTT();
                 }
             }
+
         }
 
         @Override
         public void onPartialResults(Bundle partialResults) {}
-
         @Override
         public void onEvent(int eventType, Bundle params) {}
+        @Override
+        public void onBeginningOfSpeech() {}
+        @Override
+        public void onRmsChanged(float rmsdB) {}
+        @Override
+        public void onBufferReceived(byte[] buffer) {}
+        @Override
+        public void onEndOfSpeech() {}
     };
 
     void nanView(boolean visibility) {
@@ -1125,40 +1157,96 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    boolean isBus(Bitmap img){
+    boolean isBus(Bitmap image1){
         try {
-            uploadFile(img);
+            Bitmap image = Bitmap.createScaledBitmap(image1, 224, 224, true);
 
-            ansForGpt[0] = "";
-            callAPI("이 사진은 대한민국 서울특별시의 한 도로에서 찍힌 사진이야. 이건 " + wantBsNm + "번 버스니? 맞으면 버스의 번호만을 다시한번만 보내주고" +
-                    "아니면 null이라고만 보내줘. 예시: " + wantBsNm + "번 버스일 경우 '" + wantBsNm + "'라고만 대답, 버스가 아닐 경우 'null'이라고 대답해줘.", imageUrl);
+            Busmodel model = Busmodel.newInstance(getApplicationContext());
 
-            final boolean[] res = new boolean[1];
-            final boolean[] isRunning = {true};
+            int imageSize = 224;
 
-            Timer timer = new Timer();
-            TimerTask timerTask = new TimerTask() {
-                @Override
-                public void run() {
-                    if(Objects.equals(ansForGpt[0], "null")) {
-                        res[0] = false;
-                        isRunning[0] = false;
-                        timer.cancel();
-                    } else if(Objects.equals(ansForGpt[0], wantBsNm)) {
-                        res[0] = true;
-                        isRunning[0] = false;
-                        timer.cancel();
-                    } else if(!Objects.equals(ansForGpt[0],"")) {
-                        res[0] = false;
-                        isRunning[0] = false;
-                        timer.cancel();
-                    }
+            TensorBuffer inputFeature0 = TensorBuffer.createFixedSize(new int[]{1, imageSize, imageSize, 3}, DataType.FLOAT32);
+
+            ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4 * imageSize * imageSize * 3);
+            byteBuffer.order(ByteOrder.nativeOrder());
+
+            int [] intValues = new int[imageSize * imageSize];
+            image.getPixels(intValues, 0, image.getWidth(), 0, 0, image.getWidth(), image.getHeight());
+
+            int pixel = 0;
+            for(int i = 0; i < imageSize; i++){
+                for(int j = 0; j < imageSize; j++){
+                    int val = intValues[pixel++]; // RGB
+                    byteBuffer.putFloat(((val >> 16) & 0xFF) * (1.f / 255.f));
+                    byteBuffer.putFloat(((val >> 8) & 0xFF) * (1.f / 255.f));
+                    byteBuffer.putFloat((val & 0xFF) * (1.f / 255.f));
                 }
-            };
-            timer.schedule(timerTask, 0, 10);
-            while (isRunning[0]) {}
-            return res[0];
-        } catch (Exception ignore) {
+            }
+
+            inputFeature0.loadBuffer(byteBuffer);
+
+            Busmodel.Outputs outputs = model.process(inputFeature0);
+            TensorBuffer outputFeature0 = outputs.getOutputFeature0AsTensorBuffer();
+
+            float[] confidences = outputFeature0.getFloatArray();
+            int maxPos = 0;
+            float maxConfidence = 0;
+            for(int i = 0; i < confidences.length; i++){
+                if(confidences[i] > maxConfidence){
+                    maxConfidence = confidences[i];
+                    maxPos = i;
+                }
+            }
+            String[] classes = {"Bus", "No"};
+
+            model.close();
+            
+            if(classes[maxPos].equals("Bus")) {
+                try {
+                    uploadFile(image1);
+
+                    ansForGpt[0] = "";
+                    callAPI("이 사진은 대한민국 서울특별시의 한 도로에서 찍힌 시내버스 사진이야. 이건 " + wantBsNm + "번 버스니? 맞으면 버스의 번호만을 다시한번만 보내주고" +
+                            "아니면 null이라고만 보내줘. 예시: " + wantBsNm + "번 버스일 경우 '" + wantBsNm + "'라고만 대답, 그 버스가 아닐 경우 'null'이라고 대답해줘.", imageUrl);
+
+                    res = new boolean[1];
+                    final boolean[] isRunning = {true};
+                    Timer timer = new Timer();
+                    TimerTask timerTask = new TimerTask() {
+                        @Override
+                        public void run() {
+                            System.out.println(ansForGpt[0]);
+                            if(Objects.equals(ansForGpt[0], "null")) {
+                                System.out.println("NO BUS");
+                                res[0] = false;
+                                isRunning[0] = false;
+                                timer.cancel();
+                            } else if(Objects.equals(ansForGpt[0], wantBsNm)) {
+                                System.out.println("141");
+                                res[0] = true;
+                                isRunning[0] = false;
+                                timer.cancel();
+                            } else if(!Objects.equals(ansForGpt[0],"")) {
+                                System.out.println("NO 141");
+                                res[0] = false;
+                                isRunning[0] = false;
+                                timer.cancel();
+                            }
+                        }
+                    };
+                    timer.schedule(timerTask, 0, 10);
+                    while (isRunning[0]) {}
+                    System.out.println(res[0]);
+                    System.out.println("Lalala");
+                    toastMsg("la",false);
+                    return res[0];
+                } catch (Exception ignore) { }
+                return false;
+            } else {
+                return false;
+            }
+            
+        } catch (IOException e) {
             return false;
         }
     }
@@ -1202,7 +1290,7 @@ public class MainActivity extends AppCompatActivity {
                 new ImageCapture.OnImageSavedCallback() {
                     @Override
                     public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
-                        System.out.println("image saved");
+//                        System.out.println("image saved");
                     }
 
                     @Override
@@ -1214,7 +1302,7 @@ public class MainActivity extends AppCompatActivity {
         );
 
         filePath = photoFile.getPath();
-        System.out.println("file path: " + filePath);
+//        System.out.println("file path: " + filePath);
         return BitmapFactory.decodeFile(filePath);
     }
 
@@ -1322,7 +1410,6 @@ public class MainActivity extends AppCompatActivity {
                         String result = jsonArray.getJSONObject(0).getJSONObject("message").getString("content");
                         ansForGpt[0] = result.trim();
                         System.out.println(ansForGpt[0]);
-                        toastMsg(ansForGpt[0], false);
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
@@ -1335,13 +1422,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void uploadFile(Bitmap img) {
-        System.out.println("bit to base");
+//        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+//        img.compress(Bitmap.CompressFormat.JPEG, 100, baos); // bm is the bitmap object
+//        byte[] b = baos.toByteArray();
+//
+//        String encodedImage = Base64.encodeToString(b, Base64.DEFAULT);
+//
+//        imageUrl = "data:image/jpeg;base64,"+encodedImage;
+
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        img.compress(Bitmap.CompressFormat.JPEG, 100, baos); // bm is the bitmap object
-        byte[] b = baos.toByteArray();
-
-        String encodedImage = Base64.encodeToString(b, Base64.DEFAULT);
-
-        imageUrl = "data:image/jpeg;base64,"+encodedImage;
+        img.compress(Bitmap.CompressFormat.JPEG, 100, baos);
+        byte[] bytes = baos.toByteArray();
+        imageUrl = "data:image/jpeg;base64,"+Base64.encodeToString(bytes, Base64.DEFAULT);
     }
 }
